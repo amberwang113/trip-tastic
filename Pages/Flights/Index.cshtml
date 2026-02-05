@@ -1,0 +1,159 @@
+@page
+@model trip_tastic.Pages.Flights.IndexModel
+@{
+    ViewData["Title"] = "Search Flights";
+}
+
+<div class="container">
+    <h1 class="mb-4"><i class="bi bi-airplane"></i> Search Flights</h1>
+    
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <label for="origin" class="form-label">From</label>
+                    <select class="form-select" id="origin" name="origin" required>
+                        <option value="">Select origin</option>
+                        @foreach (var airport in Model.AvailableAirports)
+                        {
+                            var originCity = trip_tastic.Models.DestinationData.GetCityNameForAirport(airport);
+                            if (Model.Origin == airport)
+                            {
+                                <option value="@airport" selected>@airport - @originCity</option>
+                            }
+                            else
+                            {
+                                <option value="@airport">@airport - @originCity</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="destination" class="form-label">To</label>
+                    <select class="form-select" id="destination" name="destination" required>
+                        <option value="">Select destination</option>
+                        @foreach (var airport in Model.AvailableAirports)
+                        {
+                            var destCity = trip_tastic.Models.DestinationData.GetCityNameForAirport(airport);
+                            if (Model.Destination == airport)
+                            {
+                                <option value="@airport" selected>@airport - @destCity</option>
+                            }
+                            else
+                            {
+                                <option value="@airport">@airport - @destCity</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="departureDate" class="form-label">Departure Date</label>
+                    <input type="date" class="form-control" id="departureDate" name="departureDate" 
+                           value="@Model.DepartureDate?.ToString("yyyy-MM-dd")" 
+                           min="@DateOnly.FromDateTime(DateTime.Today.AddDays(1)).ToString("yyyy-MM-dd")" required>
+                </div>
+                <div class="col-md-2">
+                    <label for="passengers" class="form-label">Passengers</label>
+                    <input type="number" class="form-control" id="passengers" name="passengers" 
+                           value="@Model.Passengers" min="1" max="9">
+                </div>
+                <div class="col-md-1 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100" title="Search">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    @if (TempData["SuccessMessage"] is string successMessage)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle"></i> @successMessage
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    @if (Model.SearchResults is not null)
+    {
+        <h4 class="mb-3">@Model.SearchResults.TotalResults flight(s) found</h4>
+        
+        @if (Model.SearchResults.Flights.Count == 0)
+        {
+            <div class="alert alert-info">
+                No flights found for your search criteria. Try different dates or airports.
+            </div>
+        }
+        else
+        {
+            <div class="row">
+                @foreach (var flight in Model.SearchResults.Flights)
+                {
+                    <div class="col-12 mb-3">
+                        <div class="card shadow-sm flight-card">
+                            <div class="card-body">
+                                <div class="row align-items-center">
+                                    <div class="col-md-2">
+                                        <strong>@flight.Airline</strong>
+                                        <br><small class="text-muted">@flight.FlightNumber</small>
+                                    </div>
+                                    <div class="col-md-3 text-center">
+                                        <div class="h5 mb-0">@flight.DepartureTime.ToString("HH:mm")</div>
+                                        <small class="text-muted">@flight.Origin</small>
+                                    </div>
+                                    <div class="col-md-2 text-center">
+                                        <div class="flight-duration">
+                                            <small class="text-muted">@((flight.ArrivalTime - flight.DepartureTime).TotalHours.ToString("F1"))h</small>
+                                            <div class="flight-line"></div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3 text-center">
+                                        <div class="h5 mb-0">@flight.ArrivalTime.ToString("HH:mm")</div>
+                                        <small class="text-muted">@flight.Destination</small>
+                                    </div>
+                                    <div class="col-md-2 text-end">
+                                        @{
+                                            var reservedSeats = Model.GetReservedSeatsForFlight(flight.Id);
+                                            var effectiveSeats = flight.AvailableSeats - reservedSeats;
+                                        }
+                                        <div class="h4 text-primary mb-1">$@flight.Price</div>
+                                        <small class="@(effectiveSeats <= 5 ? "text-danger" : "text-muted") d-block mb-2">
+                                            @effectiveSeats seats left
+                                            @if (reservedSeats > 0)
+                                            {
+                                                <span class="badge bg-info ms-1">@reservedSeats in cart</span>
+                                            }
+                                        </small>
+                                        <form method="post" asp-page-handler="AddToCart">
+                                            <input type="hidden" name="flightId" value="@flight.Id" />
+                                            <input type="hidden" name="passengers" value="@Model.Passengers" />
+                                            <input type="hidden" name="origin" value="@Model.Origin" />
+                                            <input type="hidden" name="destination" value="@Model.Destination" />
+                                            <input type="hidden" name="departureDate" value="@Model.DepartureDate?.ToString("yyyy-MM-dd")" />
+                                            <button type="submit" class="btn btn-success btn-sm" @(effectiveSeats < Model.Passengers ? "disabled" : "")>
+                                                <i class="bi bi-cart-plus"></i> Add to Cart
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    }
+</div>
+
+<style>
+    .flight-card:hover {
+        transform: translateY(-2px);
+        transition: transform 0.2s;
+    }
+    .flight-line {
+        width: 100%;
+        height: 2px;
+        background: linear-gradient(to right, #0d6efd, #6c757d, #0d6efd);
+        margin-top: 5px;
+    }
+</style>

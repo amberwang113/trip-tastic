@@ -1,0 +1,171 @@
+@page "/Destinations/{code}"
+@using trip_tastic.Models
+@model trip_tastic.Pages.Destinations.DetailsModel
+@{
+    ViewData["Title"] = $"{Model.Destination!.CityName} - Travel Guide";
+}
+
+<div class="container">
+    <!-- Hero Section -->
+    <div class="position-relative mb-5">
+        <img src="@Model.Destination.ImageUrl" class="w-100 rounded-4 shadow" alt="@Model.Destination.CityName" 
+             style="height: 350px; object-fit: cover;"
+             onerror="this.onerror=null; this.src='https://placehold.co/800x400/e9ecef/495057?text=@Model.Destination.CityName';">
+        <div class="position-absolute bottom-0 start-0 end-0 p-4 rounded-bottom-4"
+             style="background: linear-gradient(transparent, rgba(0,0,0,0.8));">
+            <div class="d-flex justify-content-between align-items-end">
+                <div>
+                    <h1 class="display-4 fw-bold text-white mb-1">@Model.Destination.CityName</h1>
+                    <p class="text-white-50 mb-0">
+                        <i class="bi bi-geo-alt-fill"></i> @Model.Destination.Country
+                        <span class="mx-2">|</span>
+                        <i class="bi bi-airplane-fill"></i> @Model.Destination.AirportCode Airport
+                    </p>
+                </div>
+                <span class="badge bg-primary bg-opacity-75 fs-5 px-3 py-2">@Model.Destination.AirportCode</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row g-3 mb-5">
+        <div class="col-md-6">
+            <a href="/Flights?destination=@Model.Destination.AirportCode&departureDate=@Model.Tomorrow" 
+               class="btn btn-primary btn-lg w-100 py-3">
+                <i class="bi bi-airplane-fill me-2"></i> Search Flights to @Model.Destination.CityName
+            </a>
+        </div>
+        <div class="col-md-6">
+            <a href="/Hotels?location=@Uri.EscapeDataString(Model.Destination.CityName)&checkInDate=@Model.Tomorrow&checkOutDate=@Model.DayAfterTomorrow" 
+               class="btn btn-success btn-lg w-100 py-3">
+                <i class="bi bi-building-fill me-2"></i> Search Hotels in @Model.Destination.CityName
+            </a>
+        </div>
+    </div>
+
+    <!-- Tagline -->
+    <div class="text-center mb-5">
+        <p class="display-6 text-muted fst-italic">"@Model.Destination.Tagline"</p>
+    </div>
+
+    <div class="row g-4">
+        <!-- Description & Highlights -->
+        <div class="col-lg-8">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h4 class="mb-0"><i class="bi bi-info-circle text-primary"></i> About @Model.Destination.CityName</h4>
+                </div>
+                <div class="card-body">
+                    <p class="lead">@Model.Destination.Description</p>
+                </div>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h4 class="mb-0"><i class="bi bi-star-fill text-warning"></i> Top Highlights</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        @foreach (var highlight in Model.Destination.Highlights)
+                        {
+                            <div class="col-md-6">
+                                <div class="d-flex align-items-center p-3 bg-light rounded">
+                                    <i class="bi bi-check-circle-fill text-success me-3 fs-5"></i>
+                                    <span class="fw-medium">@highlight</span>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Travel Info Sidebar -->
+        <div class="col-lg-4">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="bi bi-journal-text text-primary"></i> Travel Information</h5>
+                </div>
+                <div class="card-body p-0">
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span class="text-muted"><i class="bi bi-thermometer-half me-2"></i>Climate</span>
+                            <span class="fw-medium text-end" style="max-width: 60%;">@Model.Destination.Climate</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span class="text-muted"><i class="bi bi-calendar-heart me-2"></i>Best Time</span>
+                            <span class="fw-medium text-end" style="max-width: 60%;">@Model.Destination.BestTimeToVisit</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span class="text-muted"><i class="bi bi-translate me-2"></i>Language</span>
+                            <span class="fw-medium">@Model.Destination.Language</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span class="text-muted"><i class="bi bi-currency-exchange me-2"></i>Currency</span>
+                            <span class="fw-medium">@Model.Destination.Currency</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span class="text-muted"><i class="bi bi-clock me-2"></i>Time Zone</span>
+                            <span class="fw-medium">@Model.Destination.TimeZone</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="card shadow-sm bg-gradient-light">
+                <div class="card-body text-center py-4">
+                    <i class="bi bi-airplane-engines display-4 text-primary mb-3"></i>
+                    <h5>Ready to explore @Model.Destination.CityName?</h5>
+                    <p class="text-muted small mb-3">Book your trip today and discover everything this amazing destination has to offer!</p>
+                    <a href="/Flights?destination=@Model.Destination.AirportCode" class="btn btn-primary">
+                        <i class="bi bi-search"></i> Find Deals
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Other Destinations -->
+    <div class="mt-5">
+        <h4 class="mb-4"><i class="bi bi-compass"></i> Explore Other Destinations</h4>
+        <div class="row g-3">
+            @foreach (var other in Model.OtherDestinations.Take(4))
+            {
+                <div class="col-md-3">
+                    <a href="/Destinations/@other.AirportCode" class="text-decoration-none">
+                        <div class="card destination-card-sm">
+                            <img src="@other.ImageUrl" class="card-img" alt="@other.CityName" 
+                                 style="height: 150px; object-fit: cover;"
+                                 onerror="this.onerror=null; this.src='https://placehold.co/400x200/e9ecef/495057?text=@other.CityName';">
+                            <div class="card-img-overlay d-flex flex-column justify-content-end p-2"
+                                 style="background: linear-gradient(transparent, rgba(0,0,0,0.7));">
+                                <h6 class="text-white mb-0">@other.CityName</h6>
+                                <small class="text-white-50">@other.Country</small>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+            }
+        </div>
+        <div class="text-center mt-4">
+            <a href="/Destinations" class="btn btn-outline-primary">
+                <i class="bi bi-grid"></i> View All Destinations
+            </a>
+        </div>
+    </div>
+</div>
+
+<style>
+    .destination-card-sm {
+        transition: transform 0.3s;
+        cursor: pointer;
+        border-radius: 12px;
+        overflow: hidden;
+    }
+    .destination-card-sm:hover {
+        transform: scale(1.05);
+    }
+    .bg-gradient-light {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    }
+</style>

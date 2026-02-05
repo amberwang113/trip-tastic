@@ -1,0 +1,178 @@
+@page
+@model trip_tastic.Pages.Hotels.IndexModel
+@{
+    ViewData["Title"] = "Search Hotels";
+}
+
+<div class="container">
+    <h1 class="mb-4"><i class="bi bi-building"></i> Search Hotels</h1>
+    
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <label for="location" class="form-label">Destination</label>
+                    <select class="form-select" id="location" name="location" required>
+                        <option value="">Select destination</option>
+                        @foreach (var loc in Model.AvailableLocations)
+                        {
+                            if (Model.Location == loc)
+                            {
+                                <option value="@loc" selected>@loc</option>
+                            }
+                            else
+                            {
+                                <option value="@loc">@loc</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="checkInDate" class="form-label">Check-in</label>
+                    <input type="date" class="form-control" id="checkInDate" name="checkInDate" 
+                           value="@Model.CheckInDate?.ToString("yyyy-MM-dd")" 
+                           min="@DateOnly.FromDateTime(DateTime.Today).ToString("yyyy-MM-dd")" required>
+                </div>
+                <div class="col-md-2">
+                    <label for="checkOutDate" class="form-label">Check-out</label>
+                    <input type="date" class="form-control" id="checkOutDate" name="checkOutDate" 
+                           value="@Model.CheckOutDate?.ToString("yyyy-MM-dd")" 
+                           min="@DateOnly.FromDateTime(DateTime.Today.AddDays(1)).ToString("yyyy-MM-dd")" required>
+                </div>
+                <div class="col-md-2">
+                    <label for="guests" class="form-label">Guests</label>
+                    <input type="number" class="form-control" id="guests" name="guests" 
+                           value="@Model.Guests" min="1" max="10">
+                </div>
+                <div class="col-md-2">
+                    <label for="rooms" class="form-label">Rooms</label>
+                    <input type="number" class="form-control" id="rooms" name="rooms" 
+                           value="@Model.Rooms" min="1" max="5">
+                </div>
+                <div class="col-md-1 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100" title="Search">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    @if (TempData["SuccessMessage"] is string successMessage)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle"></i> @successMessage
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    @if (Model.SearchResults is not null)
+    {
+        <h4 class="mb-3">@Model.SearchResults.TotalResults hotel(s) found</h4>
+        
+        @if (Model.SearchResults.Hotels.Count == 0)
+        {
+            <div class="alert alert-info">
+                No hotels found for your search criteria. Try a different location or dates.
+            </div>
+        }
+        else
+        {
+            <div class="row">
+                @foreach (var availability in Model.SearchResults.Hotels)
+                {
+                    <div class="col-md-6 col-lg-4 mb-4">
+                        <div class="card shadow-sm h-100 hotel-card">
+                            <img src="@availability.Hotel.ImageUrl" class="card-img-top" alt="@availability.Hotel.Name" 
+                                 style="height: 200px; object-fit: cover;"
+                                 onerror="this.onerror=null; this.src='https://placehold.co/400x300/e9ecef/495057?text=Hotel+Image';">
+                            <div class="card-body">
+                                <h5 class="card-title">@availability.Hotel.Name</h5>
+                                <div class="mb-2">
+                                    @for (var i = 0; i < availability.Hotel.StarRating; i++)
+                                    {
+                                        <i class="bi bi-star-fill text-warning"></i>
+                                    }
+                                    @for (var i = availability.Hotel.StarRating; i < 5; i++)
+                                    {
+                                        <i class="bi bi-star text-muted"></i>
+                                    }
+                                </div>
+                                <p class="text-muted mb-2">
+                                    <i class="bi bi-geo-alt"></i> @availability.Hotel.Address
+                                </p>
+                                @{
+                                    var airportCode = trip_tastic.Models.DestinationData.GetAirportCodeForCity(availability.Hotel.Location);
+                                }
+                                @if (airportCode is not null)
+                                {
+                                    <p class="mb-2">
+                                        <a href="/Destinations/@airportCode" class="text-decoration-none">
+                                            <i class="bi bi-pin-map-fill text-primary"></i> 
+                                            <span class="text-primary fw-medium">@availability.Hotel.Location</span>
+                                            <i class="bi bi-box-arrow-up-right small ms-1"></i>
+                                        </a>
+                                    </p>
+                                }
+                                else
+                                {
+                                    <p class="text-muted mb-2">
+                                        <i class="bi bi-pin-map"></i> @availability.Hotel.Location
+                                    </p>
+                                }
+                                <div class="mb-3">
+                                    @foreach (var amenity in availability.Hotel.Amenities.Take(4))
+                                    {
+                                        <span class="badge bg-light text-dark me-1 mb-1">@amenity</span>
+                                    }
+                                    @if (availability.Hotel.Amenities.Count > 4)
+                                    {
+                                        <span class="badge bg-secondary">+@(availability.Hotel.Amenities.Count - 4) more</span>
+                                    }
+                                </div>
+                            </div>
+                            <div class="card-footer bg-white border-top-0">
+                                @{
+                                    var reservedRooms = Model.GetReservedRoomsForHotel(availability.Hotel.Id);
+                                    var effectiveAvailable = availability.Hotel.AvailableRooms - reservedRooms;
+                                }
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <div>
+                                        <small class="text-muted">@availability.Nights night(s)</small>
+                                        <div class="h5 text-primary mb-0">$@availability.TotalPrice</div>
+                                    </div>
+                                    <small class="@(effectiveAvailable <= 2 ? "text-danger" : "text-muted")">
+                                        @effectiveAvailable rooms left
+                                        @if (reservedRooms > 0)
+                                        {
+                                            <span class="badge bg-info ms-1">@reservedRooms in cart</span>
+                                        }
+                                    </small>
+                                </div>
+                                <form method="post" asp-page-handler="AddToCart">
+                                    <input type="hidden" name="hotelId" value="@availability.Hotel.Id" />
+                                    <input type="hidden" name="checkInDate" value="@Model.CheckInDate?.ToString("yyyy-MM-dd")" />
+                                    <input type="hidden" name="checkOutDate" value="@Model.CheckOutDate?.ToString("yyyy-MM-dd")" />
+                                    <input type="hidden" name="rooms" value="@Model.Rooms" />
+                                    <input type="hidden" name="guests" value="@Model.Guests" />
+                                    <input type="hidden" name="location" value="@Model.Location" />
+                                    <button type="submit" class="btn btn-success btn-sm w-100" @(effectiveAvailable < Model.Rooms ? "disabled" : "")>
+                                        <i class="bi bi-cart-plus"></i> Add to Cart
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    }
+</div>
+
+<style>
+    .hotel-card:hover {
+        transform: translateY(-5px);
+        transition: transform 0.3s;
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+    }
+</style>

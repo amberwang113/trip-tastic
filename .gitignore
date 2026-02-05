@@ -7,6 +7,10 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/main/Dotnet.gitignore
 
+# Visual Studio
+.vs/
+*.user
+
 # Build results
 [Dd]ebug/
 [Dd]ebugPublic/
@@ -30,6 +34,9 @@ artifacts/
 
 # ASP.NET Scaffolding
 ScaffoldingReadMe.txt
+
+# User secrets and local settings
+appsettings.Development.json
 
 # NuGet Packages
 *.nupkg

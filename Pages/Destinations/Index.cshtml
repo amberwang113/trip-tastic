@@ -1,0 +1,67 @@
+@page
+@using trip_tastic.Models
+@model trip_tastic.Pages.Destinations.IndexModel
+@{
+    ViewData["Title"] = "Explore Destinations";
+}
+
+<div class="container">
+    <div class="text-center mb-5">
+        <h1 class="display-4 fw-bold"><i class="bi bi-globe-americas"></i> Explore Destinations</h1>
+        <p class="lead text-muted">Discover amazing places around the world and start planning your next adventure</p>
+    </div>
+
+    <div class="row g-4">
+        @foreach (var destination in Model.Destinations)
+        {
+            <div class="col-md-6 col-lg-4">
+                <a href="/Destinations/@destination.AirportCode" class="text-decoration-none">
+                    <div class="card destination-card h-100 shadow-sm">
+                        <img src="@destination.ImageUrl" class="card-img-top" alt="@destination.CityName" 
+                             style="height: 200px; object-fit: cover;"
+                             onerror="this.onerror=null; this.src='https://placehold.co/800x400/e9ecef/495057?text=@destination.CityName';">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h5 class="card-title mb-0 text-dark">@destination.CityName</h5>
+                                <span class="badge bg-primary">@destination.AirportCode</span>
+                            </div>
+                            <p class="text-muted small mb-2">
+                                <i class="bi bi-geo-alt"></i> @destination.Country
+                            </p>
+                            <p class="card-text text-secondary small">@destination.Tagline</p>
+                        </div>
+                        <div class="card-footer bg-white border-top-0">
+                            <div class="d-flex gap-2">
+                                @{
+                                    var tomorrow = DateOnly.FromDateTime(DateTime.Today.AddDays(1)).ToString("yyyy-MM-dd");
+                                    var dayAfter = DateOnly.FromDateTime(DateTime.Today.AddDays(2)).ToString("yyyy-MM-dd");
+                                }
+                                <a href="/Flights?destination=@destination.AirportCode&departureDate=@tomorrow" 
+                                   class="btn btn-sm btn-outline-primary flex-grow-1"
+                                   onclick="event.stopPropagation();">
+                                    <i class="bi bi-airplane"></i> Flights
+                                </a>
+                                <a href="/Hotels?location=@Uri.EscapeDataString(destination.CityName)&checkInDate=@tomorrow&checkOutDate=@dayAfter" 
+                                   class="btn btn-sm btn-outline-success flex-grow-1"
+                                   onclick="event.stopPropagation();">
+                                    <i class="bi bi-building"></i> Hotels
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </a>
+            </div>
+        }
+    </div>
+</div>
+
+<style>
+    .destination-card {
+        transition: transform 0.3s, box-shadow 0.3s;
+        cursor: pointer;
+    }
+    .destination-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 1rem 3rem rgba(0,0,0,0.175) !important;
+    }
+</style>

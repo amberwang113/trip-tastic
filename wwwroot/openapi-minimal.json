@@ -1,0 +1,142 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "TripTastic Travel API",
+    "description": "Search flights and hotels. Call getCurrentDate first to get today's date.",
+    "version": "1.0.0"
+  },
+  "servers": [{"url": "https://triptastic.azurewebsites.net"}],
+  "paths": {
+    "/api/System/current-date": {
+      "get": {
+        "operationId": "get_current_date",
+        "summary": "Get current date - call this first",
+        "responses": {
+          "200": {
+            "description": "Current date info",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/CurrentDateResponse"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/Flights/search": {
+      "get": {
+        "operationId": "search_flights",
+        "summary": "Search flights between airports",
+        "parameters": [
+          {"name": "origin", "in": "query", "required": true, "schema": {"type": "string"}, "description": "Origin airport code"},
+          {"name": "destination", "in": "query", "required": true, "schema": {"type": "string"}, "description": "Destination airport code"},
+          {"name": "departureDate", "in": "query", "required": true, "schema": {"type": "string", "format": "date"}, "description": "Date YYYY-MM-DD"},
+          {"name": "passengers", "in": "query", "schema": {"type": "integer", "default": 1}}
+        ],
+        "responses": {"200": {"description": "Success", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/FlightSearchResponse"}}}}}
+      }
+    },
+    "/api/Hotels/search": {
+      "get": {
+        "operationId": "search_hotels",
+        "summary": "Search hotels in a city",
+        "parameters": [
+          {"name": "location", "in": "query", "required": true, "schema": {"type": "string"}, "description": "City name"},
+          {"name": "checkInDate", "in": "query", "required": true, "schema": {"type": "string", "format": "date"}, "description": "Check-in YYYY-MM-DD"},
+          {"name": "checkOutDate", "in": "query", "required": true, "schema": {"type": "string", "format": "date"}, "description": "Check-out YYYY-MM-DD"},
+          {"name": "guests", "in": "query", "schema": {"type": "integer", "default": 1}}
+        ],
+        "responses": {"200": {"description": "Success", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HotelSearchResponse"}}}}}
+      }
+    },
+    "/api/TripPlanner/plan": {
+      "get": {
+        "operationId": "plan_trip",
+        "summary": "Plan round-trip with flights and hotel",
+        "parameters": [
+          {"name": "origin", "in": "query", "required": true, "schema": {"type": "string"}, "description": "Origin airport code"},
+          {"name": "destination", "in": "query", "required": true, "schema": {"type": "string"}, "description": "Destination airport code"},
+          {"name": "departureDate", "in": "query", "required": true, "schema": {"type": "string", "format": "date"}, "description": "Departure YYYY-MM-DD"},
+          {"name": "returnDate", "in": "query", "required": true, "schema": {"type": "string", "format": "date"}, "description": "Return YYYY-MM-DD"},
+          {"name": "travelers", "in": "query", "schema": {"type": "integer", "default": 1}},
+          {"name": "maxBudget", "in": "query", "schema": {"type": "number"}}
+        ],
+        "responses": {"200": {"description": "Success", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/TripPlan"}}}}}
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CurrentDateResponse": {
+        "type": "object",
+        "properties": {
+          "currentDateFormatted": {"type": "string"},
+          "tomorrow": {"type": "string"},
+          "nextWeek": {"type": "string"}
+        }
+      },
+      "Flight": {
+        "type": "object",
+        "properties": {
+          "airline": {"type": "string"},
+          "flightNumber": {"type": "string"},
+          "origin": {"type": "string"},
+          "destination": {"type": "string"},
+          "departureTime": {"type": "string"},
+          "arrivalTime": {"type": "string"},
+          "price": {"type": "number"}
+        }
+      },
+      "FlightSearchResponse": {
+        "type": "object",
+        "properties": {
+          "flights": {"type": "array", "items": {"$ref": "#/components/schemas/Flight"}},
+          "totalResults": {"type": "integer"}
+        }
+      },
+      "Hotel": {
+        "type": "object",
+        "properties": {
+          "name": {"type": "string"},
+          "location": {"type": "string"},
+          "starRating": {"type": "integer"},
+          "pricePerNight": {"type": "number"}
+        }
+      },
+      "HotelAvailability": {
+        "type": "object",
+        "properties": {
+          "hotel": {"$ref": "#/components/schemas/Hotel"},
+          "totalPrice": {"type": "number"},
+          "nights": {"type": "integer"}
+        }
+      },
+      "HotelSearchResponse": {
+        "type": "object",
+        "properties": {
+          "hotels": {"type": "array", "items": {"$ref": "#/components/schemas/HotelAvailability"}},
+          "totalResults": {"type": "integer"}
+        }
+      },
+      "TripPlan": {
+        "type": "object",
+        "properties": {
+          "origin": {"type": "string"},
+          "destination": {"type": "string"},
+          "nights": {"type": "integer"},
+          "recommendation": {"$ref": "#/components/schemas/TripRecommendation"}
+        }
+      },
+      "TripRecommendation": {
+        "type": "object",
+        "properties": {
+          "outboundFlight": {"$ref": "#/components/schemas/Flight"},
+          "returnFlight": {"$ref": "#/components/schemas/Flight"},
+          "hotel": {"$ref": "#/components/schemas/HotelAvailability"},
+          "totalPrice": {"type": "number"},
+          "recommendationReason": {"type": "string"}
+        }
+      }
+    }
+  }
+}

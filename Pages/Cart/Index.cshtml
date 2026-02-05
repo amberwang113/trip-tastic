@@ -1,0 +1,149 @@
+@page
+@model trip_tastic.Pages.Cart.IndexModel
+@{
+    ViewData["Title"] = "Shopping Cart";
+}
+
+<div class="container">
+    <h1 class="mb-4"><i class="bi bi-cart3"></i> Shopping Cart</h1>
+
+    @if (Model.Cart.TotalItems == 0)
+    {
+        <div class="card shadow-sm">
+            <div class="card-body text-center py-5">
+                <div class="display-1 text-muted mb-3"><i class="bi bi-cart3"></i></div>
+                <h4 class="text-muted">Your cart is empty</h4>
+                <p class="text-muted mb-4">Start searching for flights and hotels to add them to your cart!</p>
+                <div class="d-flex justify-content-center gap-2">
+                    <a href="/Flights" class="btn btn-primary">
+                        <i class="bi bi-airplane"></i> Search Flights
+                    </a>
+                    <a href="/Hotels" class="btn btn-outline-primary">
+                        <i class="bi bi-building"></i> Search Hotels
+                    </a>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            <div class="col-lg-8">
+                @foreach (var item in Model.Cart.Items)
+                {
+                    @if (item.Type == trip_tastic.Models.CartItemType.Flight && item.Flight is not null)
+                    {
+                        <div class="card shadow-sm mb-3">
+                            <div class="card-body">
+                                <div class="row align-items-center">
+                                    <div class="col-md-1">
+                                        <span class="badge bg-primary fs-6"><i class="bi bi-airplane"></i></span>
+                                    </div>
+                                    <div class="col-md-5">
+                                        <h6 class="mb-1">@item.Flight.Airline</h6>
+                                        <small class="text-muted">@item.Flight.FlightNumber</small>
+                                        <div class="mt-2">
+                                            <strong>@item.Flight.Origin</strong>
+                                            <span class="text-muted mx-2">&rarr;</span>
+                                            <strong>@item.Flight.Destination</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3 text-center">
+                                        <div>@item.Flight.DepartureTime.ToString("MMM dd, yyyy")</div>
+                                        <small class="text-muted">
+                                            @item.Flight.DepartureTime.ToString("HH:mm") - @item.Flight.ArrivalTime.ToString("HH:mm")
+                                        </small>
+                                        <div class="mt-1">
+                                            <span class="badge bg-secondary">@item.Passengers passenger(s)</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-2 text-end">
+                                        <div class="h5 text-primary mb-0">$@item.TotalPrice</div>
+                                        <small class="text-muted">$@item.Flight.Price × @item.Passengers</small>
+                                    </div>
+                                    <div class="col-md-1 text-end">
+                                        <form method="post" asp-page-handler="RemoveFlight">
+                                            <input type="hidden" name="flightId" value="@item.Flight.Id" />
+                                            <button type="submit" class="btn btn-outline-danger btn-sm" title="Remove">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                    @if (item.Type == trip_tastic.Models.CartItemType.Hotel && item.Hotel is not null)
+                    {
+                        <div class="card shadow-sm mb-3">
+                            <div class="card-body">
+                                <div class="row align-items-center">
+                                    <div class="col-md-1">
+                                        <span class="badge bg-success fs-6"><i class="bi bi-building"></i></span>
+                                    </div>
+                                    <div class="col-md-5">
+                                        <h6 class="mb-1">@item.Hotel.Name</h6>
+                                        <small class="text-muted">@item.Hotel.Location</small>
+                                        <div class="mt-1">
+                                            @for (var i = 0; i < item.Hotel.StarRating; i++)
+                                            {
+                                                <i class="bi bi-star-fill text-warning small"></i>
+                                            }
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3 text-center">
+                                        <div>@item.CheckInDate?.ToString("MMM dd") - @item.CheckOutDate?.ToString("MMM dd, yyyy")</div>
+                                        <small class="text-muted">@item.Nights night(s)</small>
+                                        <div class="mt-1">
+                                            <span class="badge bg-secondary">@item.Rooms room(s), @item.Guests guest(s)</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-2 text-end">
+                                        <div class="h5 text-primary mb-0">$@item.TotalPrice</div>
+                                        <small class="text-muted">$@item.Hotel.PricePerNight/night</small>
+                                    </div>
+                                    <div class="col-md-1 text-end">
+                                        <form method="post" asp-page-handler="RemoveHotel">
+                                            <input type="hidden" name="hotelId" value="@item.Hotel.Id" />
+                                            <button type="submit" class="btn btn-outline-danger btn-sm" title="Remove">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                }
+            </div>
+            <div class="col-lg-4">
+                <div class="card shadow-sm sticky-top" style="top: 20px; z-index: 100;">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0"><i class="bi bi-receipt"></i> Order Summary</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Items (@Model.Cart.TotalItems)</span>
+                            <span>$@Model.Cart.TotalPrice</span>
+                        </div>
+                        <hr />
+                        <div class="d-flex justify-content-between mb-3">
+                            <strong>Total</strong>
+                            <strong class="text-primary h4 mb-0">$@Model.Cart.TotalPrice</strong>
+                        </div>
+                        <form method="post" asp-page-handler="Checkout">
+                            <button type="submit" class="btn btn-success w-100 mb-2">
+                                <i class="bi bi-credit-card"></i> Proceed to Checkout
+                            </button>
+                        </form>
+                        <form method="post" asp-page-handler="Clear">
+                            <button type="submit" class="btn btn-outline-secondary w-100">
+                                <i class="bi bi-trash"></i> Clear Cart
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>

@@ -1,0 +1,119 @@
+﻿@page
+@using trip_tastic.Models
+@model IndexModel
+@{
+    ViewData["Title"] = "Your Adventure Awaits";
+}
+
+<div class="hero-section text-center py-5 mb-5">
+    <div class="container">
+        <h1 class="display-3 fw-bold text-primary mb-3">
+            <i class="bi bi-airplane"></i> TripTastic
+        </h1>
+        <p class="lead text-muted mb-4">
+            Discover amazing destinations. Book flights and hotels at the best prices.
+        </p>
+        <div class="row justify-content-center g-3">
+            <div class="col-auto">
+                <a href="/Flights" class="btn btn-primary btn-lg px-4">
+                    <i class="bi bi-airplane"></i> Search Flights
+                </a>
+            </div>
+            <div class="col-auto">
+                <a href="/Hotels" class="btn btn-outline-primary btn-lg px-4">
+                    <i class="bi bi-building"></i> Search Hotels
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    <div class="row g-4 mb-5">
+        <div class="col-md-4">
+            <div class="card h-100 shadow-sm text-center p-4">
+                <div class="card-body">
+                    <div class="display-4 text-primary mb-3"><i class="bi bi-globe"></i></div>
+                    <h5 class="card-title">Global Destinations</h5>
+                    <p class="card-text text-muted">
+                        Explore flights and hotels across major cities worldwide including New York, London, Paris, Tokyo, and Sydney.
+                    </p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100 shadow-sm text-center p-4">
+                <div class="card-body">
+                    <div class="display-4 text-primary mb-3"><i class="bi bi-cash-stack"></i></div>
+                    <h5 class="card-title">Best Prices</h5>
+                    <p class="card-text text-muted">
+                        Compare prices from multiple airlines and hotels to find the perfect deal for your budget.
+                    </p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100 shadow-sm text-center p-4">
+                <div class="card-body">
+                    <div class="display-4 text-primary mb-3"><i class="bi bi-lightning-charge"></i></div>
+                    <h5 class="card-title">Instant Booking</h5>
+                    <p class="card-text text-muted">
+                        Book your flights and hotels instantly with our easy-to-use platform and get immediate confirmation.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-5">
+        <div class="col-12">
+            <h3 class="mb-4 text-center">Popular Destinations</h3>
+            <div class="row g-3">
+                @{
+                    var tomorrow = DateOnly.FromDateTime(DateTime.Today.AddDays(1)).ToString("yyyy-MM-dd");
+                    var featuredCodes = new[] { "JFK", "CDG", "NRT", "SYD" };
+                    var destinations = featuredCodes
+                        .Select(code => DestinationData.GetByAirportCode(code))
+                        .Where(d => d != null)
+                        .ToList();
+                }
+                @foreach (var dest in destinations)
+                {
+                    <div class="col-md-3">
+                        <a href="/Destinations/@dest!.AirportCode" class="text-decoration-none">
+                            <div class="card destination-card">
+                                <img src="@dest.ImageUrl" class="card-img" alt="@dest.CityName" 
+                                     style="height: 200px; object-fit: cover;"
+                                     onerror="this.onerror=null; this.src='https://placehold.co/400x250/e9ecef/495057?text=@dest.CityName';">
+                                <div class="card-img-overlay d-flex flex-column justify-content-end"
+                                     style="background: linear-gradient(transparent, rgba(0,0,0,0.7));">
+                                    <h5 class="card-title text-white mb-0">@dest.CityName</h5>
+                                    <small class="text-white-50">@dest.Tagline</small>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+                }
+            </div>
+            <div class="text-center mt-4">
+                <a href="/Destinations" class="btn btn-outline-primary">
+                    <i class="bi bi-globe-americas"></i> Explore All @DestinationData.All.Count Destinations
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .hero-section {
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        border-radius: 0 0 50px 50px;
+    }
+    .destination-card {
+        cursor: pointer;
+        transition: transform 0.3s;
+    }
+    .destination-card:hover {
+        transform: scale(1.05);
+    }
+</style>

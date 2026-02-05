@@ -1,0 +1,160 @@
+@page
+@model trip_tastic.Pages.MyTrips.IndexModel
+@{
+    ViewData["Title"] = "My Trips";
+}
+
+<div class="container">
+    <h1 class="mb-4"><i class="bi bi-luggage"></i> My Trips</h1>
+
+    @if (Model.NewBookingId.HasValue)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle-fill"></i> <strong>Booking confirmed!</strong> Your trip has been successfully booked.
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    @if (Model.Trips.Count == 0)
+    {
+        <div class="card shadow-sm">
+            <div class="card-body text-center py-5">
+                <div class="display-1 text-muted mb-3"><i class="bi bi-luggage"></i></div>
+                <h4 class="text-muted">No trips booked yet</h4>
+                <p class="text-muted mb-4">Search for flights and hotels, add them to your cart, and proceed to checkout!</p>
+                <div class="d-flex justify-content-center gap-2">
+                    <a href="/Flights" class="btn btn-primary">
+                        <i class="bi bi-airplane"></i> Search Flights
+                    </a>
+                    <a href="/Hotels" class="btn btn-outline-primary">
+                        <i class="bi bi-building"></i> Search Hotels
+                    </a>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        @foreach (var trip in Model.Trips)
+        {
+            var isNew = Model.NewBookingId == trip.Id;
+            var isCancelled = trip.Status == trip_tastic.Models.TripStatus.Cancelled;
+
+            <div class="card shadow-sm mb-4 @(isNew ? "border-success border-2" : "") @(isCancelled ? "opacity-75" : "")">
+                <div class="card-header d-flex justify-content-between align-items-center @(isCancelled ? "bg-secondary text-white" : "bg-primary text-white")">
+                    <div>
+                        <h5 class="mb-0">
+                            <i class="bi bi-ticket-perforated"></i> Trip @trip.ConfirmationCode
+                            @if (isNew)
+                            {
+                                <span class="badge bg-warning text-dark ms-2">NEW</span>
+                            }
+                        </h5>
+                        <small>Booked on @trip.BookedAt.ToString("MMM dd, yyyy 'at' HH:mm")</small>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        @{
+                            var statusClass = trip.Status switch
+                            {
+                                trip_tastic.Models.TripStatus.Confirmed => "bg-success",
+                                trip_tastic.Models.TripStatus.Upcoming => "bg-info",
+                                trip_tastic.Models.TripStatus.InProgress => "bg-warning text-dark",
+                                trip_tastic.Models.TripStatus.Completed => "bg-secondary",
+                                trip_tastic.Models.TripStatus.Cancelled => "bg-danger",
+                                _ => "bg-secondary"
+                            };
+                        }
+                        <span class="badge @statusClass">@trip.Status</span>
+                        <span class="badge bg-light text-dark fs-6">$@trip.TotalPrice</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    @if (trip.Flights.Count > 0)
+                    {
+                        <h6 class="text-primary mb-3"><i class="bi bi-airplane"></i> Flights</h6>
+                        @foreach (var flight in trip.Flights)
+                        {
+                            <div class="row align-items-center mb-3 p-2 bg-light rounded">
+                                <div class="col-md-1">
+                                    <span class="badge bg-primary"><i class="bi bi-airplane"></i></span>
+                                </div>
+                                <div class="col-md-4">
+                                    <strong>@flight.Airline</strong> - @flight.FlightNumber
+                                    <br />
+                                    <small class="text-muted">Confirmation: @flight.ConfirmationCode</small>
+                                </div>
+                                <div class="col-md-3">
+                                    <strong>@flight.Origin</strong>
+                                    <span class="text-muted mx-1">&rarr;</span>
+                                    <strong>@flight.Destination</strong>
+                                </div>
+                                <div class="col-md-2 text-center">
+                                    <div>@flight.DepartureTime.ToString("MMM dd, yyyy")</div>
+                                    <small class="text-muted">
+                                        @flight.DepartureTime.ToString("HH:mm") - @flight.ArrivalTime.ToString("HH:mm")
+                                    </small>
+                                </div>
+                                <div class="col-md-2 text-end">
+                                    <span class="badge bg-secondary">@flight.Passengers pax</span>
+                                    <div class="text-primary fw-bold">$@flight.TotalPrice</div>
+                                </div>
+                            </div>
+                        }
+                    }
+
+                    @if (trip.Hotels.Count > 0)
+                    {
+                        <h6 class="text-success mb-3 mt-4"><i class="bi bi-building"></i> Hotels</h6>
+                        @foreach (var hotel in trip.Hotels)
+                        {
+                            <div class="row align-items-center mb-3 p-2 bg-light rounded">
+                                <div class="col-md-1">
+                                    <span class="badge bg-success"><i class="bi bi-building"></i></span>
+                                </div>
+                                <div class="col-md-4">
+                                    <strong>@hotel.HotelName</strong>
+                                    <br />
+                                    <small class="text-muted">@hotel.Location</small>
+                                    <div>
+                                        @for (var i = 0; i < hotel.StarRating; i++)
+                                        {
+                                            <i class="bi bi-star-fill text-warning small"></i>
+                                        }
+                                    </div>
+                                    <small class="text-muted">Confirmation: @hotel.ConfirmationCode</small>
+                                </div>
+                                <div class="col-md-3">
+                                    <i class="bi bi-calendar-check"></i> @hotel.CheckInDate.ToString("MMM dd")
+                                    <span class="text-muted mx-1">-</span>
+                                    @hotel.CheckOutDate.ToString("MMM dd, yyyy")
+                                </div>
+                                <div class="col-md-2 text-center">
+                                    <span class="badge bg-secondary">@hotel.Nights night(s)</span>
+                                    <div>
+                                        <small>@hotel.Rooms room(s), @hotel.Guests guest(s)</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-2 text-end">
+                                    <small class="text-muted">$@hotel.PricePerNight/night</small>
+                                    <div class="text-primary fw-bold">$@hotel.TotalPrice</div>
+                                </div>
+                            </div>
+                        }
+                    }
+                </div>
+                @if (!isCancelled)
+                {
+                    <div class="card-footer bg-white">
+                        <form method="post" asp-page-handler="Cancel" class="d-inline">
+                            <input type="hidden" name="tripId" value="@trip.Id" />
+                            <button type="submit" class="btn btn-outline-danger btn-sm" 
+                                    onclick="return confirm('Are you sure you want to cancel this trip?');">
+                                <i class="bi bi-x-circle"></i> Cancel Trip
+                            </button>
+                        </form>
+                    </div>
+                }
+            </div>
+        }
+    }
+</div>
