@@ -14,17 +14,20 @@ public class CartController : ControllerBase
     private readonly IBookingService _bookingService;
     private readonly IFlightService _flightService;
     private readonly IHotelService _hotelService;
+    private readonly IUserContext _userContext;
 
     public CartController(
         ICartService cartService,
         IBookingService bookingService,
         IFlightService flightService,
-        IHotelService hotelService)
+        IHotelService hotelService,
+        IUserContext userContext)
     {
         _cartService = cartService;
         _bookingService = bookingService;
         _flightService = flightService;
         _hotelService = hotelService;
+        _userContext = userContext;
     }
 
     /// <summary>
@@ -34,7 +37,7 @@ public class CartController : ControllerBase
     [ProducesResponseType(typeof(CartResponse), StatusCodes.Status200OK)]
     public ActionResult<CartResponse> GetCart()
     {
-        var cart = _cartService.GetCart();
+        var cart = _cartService.GetCart(_userContext.UserId);
         return Ok(MapCartToResponse(cart));
     }
 
@@ -63,8 +66,8 @@ public class CartController : ControllerBase
             return BadRequest($"Not enough seats available. Requested: {request.Passengers}, Available: {flight.AvailableSeats}");
         }
 
-        _cartService.AddFlight(flight, request.Passengers);
-        var cart = _cartService.GetCart();
+        _cartService.AddFlight(_userContext.UserId, flight, request.Passengers);
+        var cart = _cartService.GetCart(_userContext.UserId);
         return Ok(MapCartToResponse(cart));
     }
 
@@ -103,8 +106,8 @@ public class CartController : ControllerBase
             return BadRequest($"Not enough rooms available. Requested: {request.Rooms}, Available: {hotel.AvailableRooms}");
         }
 
-        _cartService.AddHotel(hotel, request.CheckInDate, request.CheckOutDate, request.Rooms, request.Guests);
-        var cart = _cartService.GetCart();
+        _cartService.AddHotel(_userContext.UserId, hotel, request.CheckInDate, request.CheckOutDate, request.Rooms, request.Guests);
+        var cart = _cartService.GetCart(_userContext.UserId);
         return Ok(MapCartToResponse(cart));
     }
 
@@ -115,8 +118,8 @@ public class CartController : ControllerBase
     [ProducesResponseType(typeof(CartResponse), StatusCodes.Status200OK)]
     public ActionResult<CartResponse> RemoveFlightFromCart(Guid flightId)
     {
-        _cartService.RemoveFlight(flightId);
-        var cart = _cartService.GetCart();
+        _cartService.RemoveFlight(_userContext.UserId, flightId);
+        var cart = _cartService.GetCart(_userContext.UserId);
         return Ok(MapCartToResponse(cart));
     }
 
@@ -127,8 +130,8 @@ public class CartController : ControllerBase
     [ProducesResponseType(typeof(CartResponse), StatusCodes.Status200OK)]
     public ActionResult<CartResponse> RemoveHotelFromCart(Guid hotelId)
     {
-        _cartService.RemoveHotel(hotelId);
-        var cart = _cartService.GetCart();
+        _cartService.RemoveHotel(_userContext.UserId, hotelId);
+        var cart = _cartService.GetCart(_userContext.UserId);
         return Ok(MapCartToResponse(cart));
     }
 
@@ -139,8 +142,8 @@ public class CartController : ControllerBase
     [ProducesResponseType(typeof(CartResponse), StatusCodes.Status200OK)]
     public ActionResult<CartResponse> ClearCart()
     {
-        _cartService.ClearCart();
-        var cart = _cartService.GetCart();
+        _cartService.ClearCart(_userContext.UserId);
+        var cart = _cartService.GetCart(_userContext.UserId);
         return Ok(MapCartToResponse(cart));
     }
 
@@ -152,15 +155,15 @@ public class CartController : ControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public ActionResult<CheckoutResponse> Checkout()
     {
-        var cart = _cartService.GetCart();
+        var cart = _cartService.GetCart(_userContext.UserId);
         
         if (cart.Items.Count == 0)
         {
             return BadRequest("Cart is empty. Add flights or hotels before checking out.");
         }
 
-        var bookedTrip = _bookingService.Checkout(cart);
-        _cartService.ClearCart();
+        var bookedTrip = _bookingService.Checkout(cart, _userContext.UserId, _userContext.UserName);
+        _cartService.ClearCart(_userContext.UserId);
 
         return Ok(new CheckoutResponse
         {
@@ -171,13 +174,13 @@ public class CartController : ControllerBase
     }
 
     /// <summary>
-    /// Get all booked trips
+    /// Get all booked trips for the current user
     /// </summary>
     [HttpGet("trips")]
     [ProducesResponseType(typeof(BookedTripsResponse), StatusCodes.Status200OK)]
     public ActionResult<BookedTripsResponse> GetAllTrips()
     {
-        var trips = _bookingService.GetAllTrips();
+        var trips = _bookingService.GetTripsForUser(_userContext.UserId);
         return Ok(new BookedTripsResponse
         {
             Trips = trips.Select(MapBookedTripToResponse).ToList(),
@@ -186,14 +189,14 @@ public class CartController : ControllerBase
     }
 
     /// <summary>
-    /// Get a specific booked trip by ID
+    /// Get a specific booked trip by ID (must belong to current user)
     /// </summary>
     [HttpGet("trips/{tripId:guid}")]
     [ProducesResponseType(typeof(BookedTripResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public ActionResult<BookedTripResponse> GetTrip(Guid tripId)
     {
-        var trip = _bookingService.GetTrip(tripId);
+        var trip = _bookingService.GetTrip(tripId, _userContext.UserId);
         if (trip is null)
         {
             return NotFound($"Trip with ID {tripId} not found");
@@ -202,14 +205,14 @@ public class CartController : ControllerBase
     }
 
     /// <summary>
-    /// Cancel a booked trip
+    /// Cancel a booked trip (must belong to current user)
     /// </summary>
     [HttpPost("trips/{tripId:guid}/cancel")]
     [ProducesResponseType(typeof(CancelTripResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public ActionResult<CancelTripResponse> CancelTrip(Guid tripId)
     {
-        var success = _bookingService.CancelTrip(tripId);
+        var success = _bookingService.CancelTrip(tripId, _userContext.UserId);
         if (!success)
         {
             return NotFound($"Trip with ID {tripId} not found");

@@ -5,7 +5,13 @@
 }
 
 <div class="container">
-    <h1 class="mb-4"><i class="bi bi-luggage"></i> My Trips</h1>
+    <h1 class="mb-4">
+        <i class="bi bi-luggage"></i> My Trips
+        @if (Model.IsAuthenticated)
+        {
+            <small class="text-muted fs-5">(@Model.UserName)</small>
+        }
+    </h1>
 
     @if (Model.NewBookingId.HasValue)
     {

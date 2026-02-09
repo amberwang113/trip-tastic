@@ -9,11 +9,13 @@ public class IndexModel : PageModel
 {
     private readonly IHotelService _hotelService;
     private readonly ICartService _cartService;
+    private readonly IUserContext _userContext;
 
-    public IndexModel(IHotelService hotelService, ICartService cartService)
+    public IndexModel(IHotelService hotelService, ICartService cartService, IUserContext userContext)
     {
         _hotelService = hotelService;
         _cartService = cartService;
+        _userContext = userContext;
     }
 
     [BindProperty(SupportsGet = true)]
@@ -70,7 +72,7 @@ public class IndexModel : PageModel
             return NotFound();
         }
 
-        _cartService.AddHotel(hotel, checkInDate, checkOutDate, rooms, guests);
+        _cartService.AddHotel(_userContext.UserId, hotel, checkInDate, checkOutDate, rooms, guests);
         
         TempData["SuccessMessage"] = $"Added {hotel.Name} to cart!";
         

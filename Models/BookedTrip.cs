@@ -4,6 +4,8 @@ public class BookedTrip
 {
     public Guid Id { get; init; } = Guid.NewGuid();
     public required string ConfirmationCode { get; init; }
+    public required string UserId { get; init; }
+    public string? UserName { get; init; }
     public required IReadOnlyList<BookedFlight> Flights { get; init; }
     public required IReadOnlyList<BookedHotel> Hotels { get; init; }
     public required decimal TotalPrice { get; init; }

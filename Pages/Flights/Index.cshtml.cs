@@ -9,11 +9,13 @@ public class IndexModel : PageModel
 {
     private readonly IFlightService _flightService;
     private readonly ICartService _cartService;
+    private readonly IUserContext _userContext;
 
-    public IndexModel(IFlightService flightService, ICartService cartService)
+    public IndexModel(IFlightService flightService, ICartService cartService, IUserContext userContext)
     {
         _flightService = flightService;
         _cartService = cartService;
+        _userContext = userContext;
     }
 
     public string? SuccessMessage { get; private set; }
@@ -62,7 +64,7 @@ public class IndexModel : PageModel
             return NotFound();
         }
 
-        _cartService.AddFlight(flight, passengers);
+        _cartService.AddFlight(_userContext.UserId, flight, passengers);
         
         TempData["SuccessMessage"] = $"Added {flight.FlightNumber} to cart!";
         

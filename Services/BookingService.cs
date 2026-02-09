@@ -7,7 +7,7 @@ public class BookingService : IBookingService
     private readonly List<BookedTrip> _bookedTrips = [];
     private static readonly Random _random = new();
 
-    public BookedTrip Checkout(Cart cart)
+    public BookedTrip Checkout(Cart cart, string userId, string? userName = null)
     {
         var bookedFlights = new List<BookedFlight>();
         var bookedHotels = new List<BookedHotel>();
@@ -49,6 +49,8 @@ public class BookingService : IBookingService
         var trip = new BookedTrip
         {
             ConfirmationCode = GenerateConfirmationCode("TT"),
+            UserId = userId,
+            UserName = userName,
             Flights = bookedFlights,
             Hotels = bookedHotels,
             TotalPrice = cart.TotalPrice,
@@ -59,19 +61,22 @@ public class BookingService : IBookingService
         return trip;
     }
 
-    public IReadOnlyList<BookedTrip> GetAllTrips()
+    public IReadOnlyList<BookedTrip> GetTripsForUser(string userId)
     {
-        return _bookedTrips.OrderByDescending(t => t.BookedAt).ToList();
+        return _bookedTrips
+            .Where(t => t.UserId == userId)
+            .OrderByDescending(t => t.BookedAt)
+            .ToList();
     }
 
-    public BookedTrip? GetTrip(Guid tripId)
+    public BookedTrip? GetTrip(Guid tripId, string userId)
     {
-        return _bookedTrips.FirstOrDefault(t => t.Id == tripId);
+        return _bookedTrips.FirstOrDefault(t => t.Id == tripId && t.UserId == userId);
     }
 
-    public bool CancelTrip(Guid tripId)
+    public bool CancelTrip(Guid tripId, string userId)
     {
-        var trip = _bookedTrips.FirstOrDefault(t => t.Id == tripId);
+        var trip = _bookedTrips.FirstOrDefault(t => t.Id == tripId && t.UserId == userId);
         if (trip is null)
             return false;
 
@@ -79,9 +84,9 @@ public class BookingService : IBookingService
         return true;
     }
 
-    public int GetTripCount()
+    public int GetTripCount(string userId)
     {
-        return _bookedTrips.Count(t => t.Status != TripStatus.Cancelled);
+        return _bookedTrips.Count(t => t.UserId == userId && t.Status != TripStatus.Cancelled);
     }
 
     private static string GenerateConfirmationCode(string prefix)

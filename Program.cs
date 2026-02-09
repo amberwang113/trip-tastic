@@ -21,6 +21,12 @@ builder.Services.AddCors(options =>
     });
 });
 
+// Add HttpContextAccessor for user context
+builder.Services.AddHttpContextAccessor();
+
+// Register user context service (scoped to handle per-request user identity)
+builder.Services.AddScoped<IUserContext, UserContext>();
+
 // Register application services (singleton to maintain sample data)
 builder.Services.AddSingleton<IFlightService, FlightService>();
 builder.Services.AddSingleton<IHotelService, HotelService>();

@@ -1,24 +1,32 @@
+using System.Collections.Concurrent;
 using trip_tastic.Models;
 
 namespace trip_tastic.Services;
 
 public class CartService : ICartService
 {
-    private readonly Cart _cart = new();
+    private readonly ConcurrentDictionary<string, Cart> _userCarts = new();
 
-    public void AddFlight(Flight flight, int passengers)
+    private Cart GetOrCreateCart(string userId)
     {
+        return _userCarts.GetOrAdd(userId, _ => new Cart());
+    }
+
+    public void AddFlight(string userId, Flight flight, int passengers)
+    {
+        var cart = GetOrCreateCart(userId);
+        
         // Check if this flight is already in cart
-        var existingItem = _cart.Items.FirstOrDefault(i => 
+        var existingItem = cart.Items.FirstOrDefault(i => 
             i.Type == CartItemType.Flight && i.Flight?.Id == flight.Id);
         
         if (existingItem is not null)
         {
             // Remove existing and add with updated passengers
-            _cart.Items.Remove(existingItem);
+            cart.Items.Remove(existingItem);
         }
 
-        _cart.Items.Add(new CartItem
+        cart.Items.Add(new CartItem
         {
             Type = CartItemType.Flight,
             Flight = flight,
@@ -26,21 +34,24 @@ public class CartService : ICartService
         });
     }
 
-    public void RemoveFlight(Guid flightId)
+    public void RemoveFlight(string userId, Guid flightId)
     {
-        var item = _cart.Items.FirstOrDefault(i => 
+        var cart = GetOrCreateCart(userId);
+        var item = cart.Items.FirstOrDefault(i => 
             i.Type == CartItemType.Flight && i.Flight?.Id == flightId);
         
         if (item is not null)
         {
-            _cart.Items.Remove(item);
+            cart.Items.Remove(item);
         }
     }
 
-    public void AddHotel(Hotel hotel, DateOnly checkInDate, DateOnly checkOutDate, int rooms, int guests)
+    public void AddHotel(string userId, Hotel hotel, DateOnly checkInDate, DateOnly checkOutDate, int rooms, int guests)
     {
+        var cart = GetOrCreateCart(userId);
+        
         // Check if this hotel with same dates is already in cart
-        var existingItem = _cart.Items.FirstOrDefault(i => 
+        var existingItem = cart.Items.FirstOrDefault(i => 
             i.Type == CartItemType.Hotel && 
             i.Hotel?.Id == hotel.Id &&
             i.CheckInDate == checkInDate &&
@@ -49,10 +60,10 @@ public class CartService : ICartService
         if (existingItem is not null)
         {
             // Remove existing and add with updated details
-            _cart.Items.Remove(existingItem);
+            cart.Items.Remove(existingItem);
         }
 
-        _cart.Items.Add(new CartItem
+        cart.Items.Add(new CartItem
         {
             Type = CartItemType.Hotel,
             Hotel = hotel,
@@ -63,42 +74,46 @@ public class CartService : ICartService
         });
     }
 
-    public void RemoveHotel(Guid hotelId)
+    public void RemoveHotel(string userId, Guid hotelId)
     {
-        var item = _cart.Items.FirstOrDefault(i => 
+        var cart = GetOrCreateCart(userId);
+        var item = cart.Items.FirstOrDefault(i => 
             i.Type == CartItemType.Hotel && i.Hotel?.Id == hotelId);
         
         if (item is not null)
         {
-            _cart.Items.Remove(item);
+            cart.Items.Remove(item);
         }
     }
 
-    public void ClearCart()
+    public void ClearCart(string userId)
     {
-        _cart.Items.Clear();
+        var cart = GetOrCreateCart(userId);
+        cart.Items.Clear();
     }
 
-    public Cart GetCart()
+    public Cart GetCart(string userId)
     {
-        return _cart;
+        return GetOrCreateCart(userId);
     }
 
-    public int GetItemCount()
+    public int GetItemCount(string userId)
     {
-        return _cart.TotalItems;
+        return GetOrCreateCart(userId).TotalItems;
     }
 
     public int GetReservedSeatsForFlight(Guid flightId)
     {
-        return _cart.Items
+        return _userCarts.Values
+            .SelectMany(c => c.Items)
             .Where(i => i.Type == CartItemType.Flight && i.Flight?.Id == flightId)
             .Sum(i => i.Passengers);
     }
 
     public int GetReservedRoomsForHotel(Guid hotelId)
     {
-        return _cart.Items
+        return _userCarts.Values
+            .SelectMany(c => c.Items)
             .Where(i => i.Type == CartItemType.Hotel && i.Hotel?.Id == hotelId)
             .Sum(i => i.Rooms);
     }

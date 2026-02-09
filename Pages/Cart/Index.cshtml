@@ -5,7 +5,13 @@
 }
 
 <div class="container">
-    <h1 class="mb-4"><i class="bi bi-cart3"></i> Shopping Cart</h1>
+    <h1 class="mb-4">
+        <i class="bi bi-cart3"></i> Shopping Cart
+        @if (Model.IsAuthenticated)
+        {
+            <small class="text-muted fs-5">(@Model.UserName)</small>
+        }
+    </h1>
 
     @if (Model.Cart.TotalItems == 0)
     {
