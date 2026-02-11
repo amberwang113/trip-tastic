@@ -18,6 +18,15 @@ public class FlightService : IFlightService
         RegenerateFlightsIfNeeded();
     }
 
+    public IEnumerable<AirportInfo> GetAvailableAirports()
+    {
+        return DestinationData.All.Select(d => new AirportInfo
+        {
+            Code = d.AirportCode,
+            City = d.CityName
+        });
+    }
+
     private void RegenerateFlightsIfNeeded()
     {
         var todayUtc = DateOnly.FromDateTime(DateTime.UtcNow);
@@ -98,6 +107,66 @@ public class FlightService : IFlightService
         {
             Flights = matchingFlights,
             TotalResults = matchingFlights.Count
+        });
+    }
+
+    public Task<FlightListResponse> ListFlightsAsync(FlightListRequest request)
+    {
+        // Ensure flights are up-to-date
+        RegenerateFlightsIfNeeded();
+
+        var query = _flights.Where(f => DateOnly.FromDateTime(f.DepartureTime) == request.Date);
+
+        // Apply optional filters
+        if (!string.IsNullOrWhiteSpace(request.Origin))
+        {
+            query = query.Where(f => f.Origin.Equals(request.Origin, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.Destination))
+        {
+            query = query.Where(f => f.Destination.Equals(request.Destination, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.Airline))
+        {
+            query = query.Where(f => f.Airline.Contains(request.Airline, StringComparison.OrdinalIgnoreCase));
+        }
+
+        query = query.Where(f => f.AvailableSeats >= request.MinSeats);
+
+        if (request.MaxPrice.HasValue)
+        {
+            query = query.Where(f => f.Price <= request.MaxPrice.Value);
+        }
+
+        // Apply sorting
+        query = request.SortBy.ToLowerInvariant() switch
+        {
+            "price" => query.OrderBy(f => f.Price),
+            "duration" => query.OrderBy(f => f.ArrivalTime - f.DepartureTime),
+            "airline" => query.OrderBy(f => f.Airline).ThenBy(f => f.DepartureTime),
+            _ => query.OrderBy(f => f.DepartureTime) // default: departure
+        };
+
+        var totalResults = query.Count();
+        var flights = query.Take(request.Limit).ToList();
+
+        return Task.FromResult(new FlightListResponse
+        {
+            Flights = flights,
+            TotalResults = totalResults,
+            ReturnedResults = flights.Count,
+            Date = request.Date,
+            AppliedFilters = new FlightListFilters
+            {
+                Origin = request.Origin,
+                Destination = request.Destination,
+                Airline = request.Airline,
+                MinSeats = request.MinSeats,
+                MaxPrice = request.MaxPrice,
+                SortBy = request.SortBy
+            }
         });
     }
 

@@ -65,3 +65,56 @@ public record HotelBooking
     public required string ConfirmationCode { get; init; }
     public DateTime BookingDate { get; init; } = DateTime.UtcNow;
 }
+
+/// <summary>
+/// Request to list hotels with optional filters
+/// </summary>
+public record HotelListRequest
+{
+    public string? Location { get; init; }
+    public DateOnly? Date { get; init; }
+    public int? MinStars { get; init; }
+    public int? MaxStars { get; init; }
+    public int MinRooms { get; init; } = 1;
+    public decimal? MaxPricePerNight { get; init; }
+    public IReadOnlyList<string> RequiredAmenities { get; init; } = [];
+    public string SortBy { get; init; } = "price";
+    public int Limit { get; init; } = 50;
+}
+
+/// <summary>
+/// Response containing a list of hotels with metadata
+/// </summary>
+public record HotelListResponse
+{
+    public required IReadOnlyList<Hotel> Hotels { get; init; }
+    public required int TotalResults { get; init; }
+    public required int ReturnedResults { get; init; }
+    public required HotelListFilters AppliedFilters { get; init; }
+}
+
+/// <summary>
+/// Filters that were applied to the hotel list
+/// </summary>
+public record HotelListFilters
+{
+    public string? Location { get; init; }
+    public DateOnly? Date { get; init; }
+    public int? MinStars { get; init; }
+    public int? MaxStars { get; init; }
+    public int MinRooms { get; init; }
+    public decimal? MaxPricePerNight { get; init; }
+    public IReadOnlyList<string> RequiredAmenities { get; init; } = [];
+    public string SortBy { get; init; } = "price";
+}
+
+/// <summary>
+/// Information about an available location with hotels
+/// </summary>
+public record LocationInfo
+{
+    public required string Name { get; init; }
+    public required int HotelCount { get; init; }
+    public required decimal MinPricePerNight { get; init; }
+    public required decimal MaxPricePerNight { get; init; }
+}

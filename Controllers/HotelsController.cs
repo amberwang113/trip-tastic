@@ -17,7 +17,20 @@ public class HotelsController : ControllerBase
     }
 
     /// <summary>
-    /// Search for available hotels
+    /// Get a list of all available locations/cities with hotels
+    /// </summary>
+    /// <returns>List of locations with hotel counts</returns>
+    [HttpGet("locations")]
+    [ProducesResponseType(typeof(IEnumerable<LocationInfo>), StatusCodes.Status200OK)]
+    public ActionResult<IEnumerable<LocationInfo>> GetLocations()
+    {
+        var locations = _hotelService.GetAvailableLocations();
+        return Ok(locations);
+    }
+
+    /// <summary>
+    /// Search for available hotels with pricing for a specific stay.
+    /// Requires check-in and check-out dates to calculate total prices.
     /// </summary>
     /// <param name="location">City or location name</param>
     /// <param name="checkInDate">Check-in date (YYYY-MM-DD)</param>

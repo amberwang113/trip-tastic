@@ -24,6 +24,20 @@ public class HotelService : IHotelService
         GenerateSampleHotels();
     }
 
+    public IEnumerable<LocationInfo> GetAvailableLocations()
+    {
+        return _hotels
+            .GroupBy(h => h.Location)
+            .Select(g => new LocationInfo
+            {
+                Name = g.Key,
+                HotelCount = g.Count(),
+                MinPricePerNight = g.Min(h => h.PricePerNight),
+                MaxPricePerNight = g.Max(h => h.PricePerNight)
+            })
+            .OrderBy(l => l.Name);
+    }
+
     private void GenerateSampleHotels()
     {
         var isFirstHotel = true;
@@ -61,6 +75,70 @@ public class HotelService : IHotelService
     {
         string[] streets = ["Main", "Oak", "Park", "Cedar", "Elm", "View", "Lake", "Hill", "River", "Ocean"];
         return streets[_random.Next(streets.Length)];
+    }
+
+    public Task<HotelListResponse> ListHotelsAsync(HotelListRequest request)
+    {
+        var query = _hotels.AsEnumerable();
+
+        // Apply optional filters
+        if (!string.IsNullOrWhiteSpace(request.Location))
+        {
+            query = query.Where(h => h.Location.Equals(request.Location, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (request.MinStars.HasValue)
+        {
+            query = query.Where(h => h.StarRating >= request.MinStars.Value);
+        }
+
+        if (request.MaxStars.HasValue)
+        {
+            query = query.Where(h => h.StarRating <= request.MaxStars.Value);
+        }
+
+        query = query.Where(h => h.AvailableRooms >= request.MinRooms);
+
+        if (request.MaxPricePerNight.HasValue)
+        {
+            query = query.Where(h => h.PricePerNight <= request.MaxPricePerNight.Value);
+        }
+
+        if (request.RequiredAmenities.Count > 0)
+        {
+            query = query.Where(h => request.RequiredAmenities.All(
+                requiredAmenity => h.Amenities.Any(
+                    hotelAmenity => hotelAmenity.Contains(requiredAmenity, StringComparison.OrdinalIgnoreCase))));
+        }
+
+        // Apply sorting
+        query = request.SortBy.ToLowerInvariant() switch
+        {
+            "stars" => query.OrderByDescending(h => h.StarRating).ThenBy(h => h.PricePerNight),
+            "name" => query.OrderBy(h => h.Name),
+            _ => query.OrderBy(h => h.PricePerNight) // default: price
+        };
+
+        var totalResults = query.Count();
+        var hotels = query.Take(request.Limit).ToList();
+
+        return Task.FromResult(new HotelListResponse
+        {
+            Hotels = hotels,
+            TotalResults = totalResults,
+            ReturnedResults = hotels.Count,
+            AppliedFilters = new HotelListFilters
+            {
+                Location = request.Location,
+                Date = request.Date,
+                MinStars = request.MinStars,
+                MaxStars = request.MaxStars,
+                MinRooms = request.MinRooms,
+                MaxPricePerNight = request.MaxPricePerNight,
+                RequiredAmenities = request.RequiredAmenities,
+                SortBy = request.SortBy
+            }
+        });
     }
 
     public Task<HotelSearchResponse> SearchHotelsAsync(HotelSearchRequest request)

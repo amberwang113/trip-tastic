@@ -17,7 +17,20 @@ public class FlightsController : ControllerBase
     }
 
     /// <summary>
-    /// Search for available flights
+    /// Get a list of all available airport codes
+    /// </summary>
+    /// <returns>List of airport codes with city names</returns>
+    [HttpGet("airports")]
+    [ProducesResponseType(typeof(IEnumerable<AirportInfo>), StatusCodes.Status200OK)]
+    public ActionResult<IEnumerable<AirportInfo>> GetAirports()
+    {
+        var airports = _flightService.GetAvailableAirports();
+        return Ok(airports);
+    }
+
+    /// <summary>
+    /// Search for available flights between specific airports.
+    /// Both origin and destination are required for precise route search.
     /// </summary>
     /// <param name="origin">Origin airport code (e.g., JFK)</param>
     /// <param name="destination">Destination airport code (e.g., LAX)</param>

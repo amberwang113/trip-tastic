@@ -1,339 +1,412 @@
 {
-"openapi": "3.0.3",
-"info": {
-  "title": "TripTastic API",
-  "description": "Travel API for searching and booking flights and hotels. Supported destinations: New York (JFK), Los Angeles (LAX), Chicago (ORD), Dallas (DFW), Denver (DEN), San Francisco (SFO), Seattle (SEA), Miami (MIA), Boston (BOS), Atlanta (ATL), London (LHR), Paris (CDG), Frankfurt (FRA), Tokyo (NRT), Sydney (SYD). IMPORTANT: Call /api/System/current-date first to get today's date.",
-  "version": "1.0.0"
-},
-"servers": [{"url": "https://triptastic.azurewebsites.net"}],
-"paths": {
-  "/api/System/current-date": {
-    "get": {
-      "operationId": "getCurrentDate",
-      "summary": "Get the current date - CALL THIS FIRST before planning any trips",
-      "description": "Returns the current date in UTC. Essential for AI agents to get temporal context. All travel dates must be future dates relative to this.",
-      "responses": {
-        "200": {
-          "description": "Success",
-          "content": {
-            "application/json": {
-              "schema": {"$ref": "#/components/schemas/CurrentDateResponse"}
+  "openapi": "3.0.3",
+  "info": {
+    "title": "TripTastic API",
+    "description": "Travel API for flights and hotels. Airports: JFK, LAX, ORD, DFW, DEN, SFO, SEA, MIA, BOS, ATL, LHR, CDG, FRA, NRT, SYD. Call getCurrentDate first.",
+    "version": "2.0.0"
+  },
+  "servers": [{ "url": "https://triptastic.azurewebsites.net" }],
+  "paths": {
+    "/api/System/current-date": {
+      "get": {
+        "operationId": "getCurrentDate",
+        "summary": "Get current date - CALL FIRST",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/DateInfo" }
+              }
             }
           }
         }
       }
-    }
-  },
-  "/api/TripPlanner/plan": {
-    "get": {
-      "operationId": "planTrip",
-      "summary": "Get flight and hotel options for a round-trip",
-      "description": "Returns available outbound flights (origin to destination on departure date), return flights (destination to origin on return date), and hotels at the destination. Use the IDs from the results to add items to cart.",
-      "parameters": [
-        {"name": "origin", "in": "query", "required": true, "schema": {"type": "string"}, "description": "Origin airport code (e.g., SEA, JFK, LAX)"},
-        {"name": "destination", "in": "query", "required": true, "schema": {"type": "string"}, "description": "Destination airport code (e.g., LAX, CDG, NRT)"},
-        {"name": "departureDate", "in": "query", "required": true, "schema": {"type": "string", "format": "date"}, "description": "Departure date (YYYY-MM-DD)"},
-        {"name": "returnDate", "in": "query", "required": true, "schema": {"type": "string", "format": "date"}, "description": "Return date (YYYY-MM-DD)"},
-        {"name": "travelers", "in": "query", "schema": {"type": "integer", "default": 1}, "description": "Number of travelers"}
-      ],
-      "responses": {"200": {"description": "Success", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/TripPlan"}}}}}
-    }
-  },
-  "/api/Cart": {
-    "get": {
-      "operationId": "getCart",
-      "summary": "Get the current shopping cart",
-      "description": "Returns the current shopping cart with all items (flights and hotels).",
-      "responses": {"200": {"description": "Success", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CartResponse"}}}}}
     },
-    "delete": {
-      "operationId": "clearCart",
-      "summary": "Clear all items from the cart",
-      "description": "Removes all flights and hotels from the shopping cart.",
-      "responses": {"200": {"description": "Success", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CartResponse"}}}}}
-    }
-  },
-  "/api/Cart/flights": {
-    "post": {
-      "operationId": "addFlightToCart",
-      "summary": "Add a flight to the shopping cart",
-      "description": "Adds a flight to the cart. Use the flight ID from planTrip results. Add both outbound and return flights.",
-      "requestBody": {
-        "required": true,
-        "content": {
-          "application/json": {
-            "schema": {"$ref": "#/components/schemas/AddFlightToCartRequest"}
+    "/api/Flights/airports": {
+      "get": {
+        "operationId": "getAirports",
+        "summary": "List available airports",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Airport" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/Flights/search": {
+      "get": {
+        "operationId": "searchFlights",
+        "summary": "Search flights on a route",
+        "parameters": [
+          { "name": "origin", "in": "query", "required": true, "schema": { "type": "string" } },
+          { "name": "destination", "in": "query", "required": true, "schema": { "type": "string" } },
+          { "name": "departureDate", "in": "query", "required": true, "schema": { "type": "string", "format": "date" } },
+          { "name": "passengers", "in": "query", "schema": { "type": "integer", "default": 1 } }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/FlightList" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/Hotels/locations": {
+      "get": {
+        "operationId": "getLocations",
+        "summary": "List available hotel locations",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Location" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/Hotels/search": {
+      "get": {
+        "operationId": "searchHotels",
+        "summary": "Search hotels with pricing for dates",
+        "parameters": [
+          { "name": "location", "in": "query", "required": true, "schema": { "type": "string" } },
+          { "name": "checkInDate", "in": "query", "required": true, "schema": { "type": "string", "format": "date" } },
+          { "name": "checkOutDate", "in": "query", "required": true, "schema": { "type": "string", "format": "date" } },
+          { "name": "guests", "in": "query", "schema": { "type": "integer", "default": 1 } },
+          { "name": "rooms", "in": "query", "schema": { "type": "integer", "default": 1 } }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HotelSearchResult" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/TripPlanner/plan": {
+      "get": {
+        "operationId": "planTrip",
+        "summary": "Plan round-trip with flights and hotel",
+        "parameters": [
+          { "name": "origin", "in": "query", "required": true, "schema": { "type": "string" } },
+          { "name": "destination", "in": "query", "required": true, "schema": { "type": "string" } },
+          { "name": "departureDate", "in": "query", "required": true, "schema": { "type": "string", "format": "date" } },
+          { "name": "returnDate", "in": "query", "required": true, "schema": { "type": "string", "format": "date" } },
+          { "name": "travelers", "in": "query", "schema": { "type": "integer", "default": 1 } }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/TripPlan" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/Cart": {
+      "get": {
+        "operationId": "getCart",
+        "summary": "Get shopping cart",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Cart" }
+              }
+            }
           }
         }
       },
-      "responses": {
-        "200": {"description": "Success", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CartResponse"}}}},
-        "400": {"description": "Bad request"},
-        "404": {"description": "Flight not found"}
+      "delete": {
+        "operationId": "clearCart",
+        "summary": "Clear cart",
+        "responses": {
+          "200": { "description": "OK" }
+        }
+      }
+    },
+    "/api/Cart/flights": {
+      "post": {
+        "operationId": "addFlight",
+        "summary": "Add flight to cart",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["flightId"],
+                "properties": {
+                  "flightId": { "type": "string", "format": "uuid" },
+                  "passengers": { "type": "integer", "default": 1 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Cart" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/Cart/hotels": {
+      "post": {
+        "operationId": "addHotel",
+        "summary": "Add hotel to cart",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["hotelId", "checkInDate", "checkOutDate"],
+                "properties": {
+                  "hotelId": { "type": "string", "format": "uuid" },
+                  "checkInDate": { "type": "string", "format": "date" },
+                  "checkOutDate": { "type": "string", "format": "date" },
+                  "rooms": { "type": "integer", "default": 1 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Cart" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/Cart/checkout": {
+      "post": {
+        "operationId": "checkout",
+        "summary": "Complete booking",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/BookingConfirmation" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/Cart/trips": {
+      "get": {
+        "operationId": "getTrips",
+        "summary": "Get all booked trips",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "trips": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/BookedTrip" }
+                    },
+                    "totalTrips": { "type": "integer" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/Cart/trips/{tripId}/cancel": {
+      "post": {
+        "operationId": "cancelTrip",
+        "summary": "Cancel a trip",
+        "parameters": [
+          { "name": "tripId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": { "description": "OK" }
+        }
       }
     }
   },
-  "/api/Cart/hotels": {
-    "post": {
-      "operationId": "addHotelToCart",
-      "summary": "Add a hotel to the shopping cart",
-      "description": "Adds a hotel reservation to the cart. Use the hotel ID from planTrip results.",
-      "requestBody": {
-        "required": true,
-        "content": {
-          "application/json": {
-            "schema": {"$ref": "#/components/schemas/AddHotelToCartRequest"}
+  "components": {
+    "schemas": {
+      "DateInfo": {
+        "type": "object",
+        "properties": {
+          "currentDateFormatted": { "type": "string" },
+          "tomorrow": { "type": "string" },
+          "dayOfWeek": { "type": "string" }
+        }
+      },
+      "Airport": {
+        "type": "object",
+        "properties": {
+          "code": { "type": "string" },
+          "city": { "type": "string" }
+        }
+      },
+      "Location": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "hotelCount": { "type": "integer" },
+          "minPricePerNight": { "type": "number" },
+          "maxPricePerNight": { "type": "number" }
+        }
+      },
+      "Flight": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "airline": { "type": "string" },
+          "flightNumber": { "type": "string" },
+          "origin": { "type": "string" },
+          "destination": { "type": "string" },
+          "departureTime": { "type": "string", "format": "date-time" },
+          "arrivalTime": { "type": "string", "format": "date-time" },
+          "price": { "type": "number" },
+          "availableSeats": { "type": "integer" }
+        }
+      },
+      "FlightList": {
+        "type": "object",
+        "properties": {
+          "flights": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Flight" }
+          },
+          "totalResults": { "type": "integer" }
+        }
+      },
+      "Hotel": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "name": { "type": "string" },
+          "location": { "type": "string" },
+          "starRating": { "type": "integer" },
+          "pricePerNight": { "type": "number" },
+          "availableRooms": { "type": "integer" },
+          "amenities": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+      "HotelAvailability": {
+        "type": "object",
+        "properties": {
+          "hotel": { "$ref": "#/components/schemas/Hotel" },
+          "totalPrice": { "type": "number" },
+          "nights": { "type": "integer" }
+        }
+      },
+      "HotelSearchResult": {
+        "type": "object",
+        "properties": {
+          "hotels": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/HotelAvailability" }
+          },
+          "totalResults": { "type": "integer" }
+        }
+      },
+      "TripPlan": {
+        "type": "object",
+        "properties": {
+          "origin": { "type": "string" },
+          "destination": { "type": "string" },
+          "nights": { "type": "integer" },
+          "outboundFlights": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Flight" }
+          },
+          "returnFlights": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Flight" }
+          },
+          "hotels": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/HotelAvailability" }
           }
         }
       },
-      "responses": {
-        "200": {"description": "Success", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CartResponse"}}}},
-        "400": {"description": "Bad request"},
-        "404": {"description": "Hotel not found"}
-      }
-    }
-  },
-  "/api/Cart/checkout": {
-    "post": {
-      "operationId": "checkout",
-      "summary": "Checkout and book the trip",
-      "description": "Completes the checkout process, books all items in the cart, and creates a confirmed trip. The cart is cleared after successful checkout.",
-      "responses": {
-        "200": {"description": "Success", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CheckoutResponse"}}}},
-        "400": {"description": "Cart is empty"}
-      }
-    }
-  },
-  "/api/Cart/trips": {
-    "get": {
-      "operationId": "getAllTrips",
-      "summary": "Get all booked trips",
-      "description": "Returns all trips that have been booked.",
-      "responses": {"200": {"description": "Success", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/BookedTripsResponse"}}}}}
-    }
-  },
-  "/api/Cart/trips/{tripId}": {
-    "get": {
-      "operationId": "getTrip",
-      "summary": "Get a specific booked trip",
-      "description": "Returns details of a specific booked trip by ID.",
-      "parameters": [
-        {"name": "tripId", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}, "description": "The trip ID"}
-      ],
-      "responses": {
-        "200": {"description": "Success", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/BookedTripResponse"}}}},
-        "404": {"description": "Trip not found"}
-      }
-    }
-  },
-  "/api/Cart/trips/{tripId}/cancel": {
-    "post": {
-      "operationId": "cancelTrip",
-      "summary": "Cancel a booked trip",
-      "description": "Cancels a previously booked trip.",
-      "parameters": [
-        {"name": "tripId", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}, "description": "The trip ID to cancel"}
-      ],
-      "responses": {
-        "200": {"description": "Success", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CancelTripResponse"}}}},
-        "404": {"description": "Trip not found"}
+      "Cart": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": { "type": "string" },
+                "type": { "type": "string", "enum": ["flight", "hotel"] },
+                "description": { "type": "string" },
+                "totalPrice": { "type": "number" }
+              }
+            }
+          },
+          "totalItems": { "type": "integer" },
+          "totalPrice": { "type": "number" }
+        }
+      },
+      "BookingConfirmation": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean" },
+          "message": { "type": "string" },
+          "bookedTrip": { "$ref": "#/components/schemas/BookedTrip" }
+        }
+      },
+      "BookedTrip": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "confirmationCode": { "type": "string" },
+          "status": { "type": "string" },
+          "totalPrice": { "type": "number" },
+          "bookedAt": { "type": "string", "format": "date-time" }
+        }
       }
     }
   }
-},
-"components": {
-"schemas": {
-  "CurrentDateResponse": {
-    "type": "object",
-    "description": "Current date information for trip planning",
-    "properties": {
-      "currentDateFormatted": {"type": "string", "description": "Current date as YYYY-MM-DD string"},
-      "dayOfWeek": {"type": "string", "description": "Day of the week"},
-      "tomorrow": {"type": "string", "format": "date", "description": "Tomorrow's date"}
-    }
-  },
-  "Flight": {
-    "type": "object",
-    "properties": {
-      "id": {"type": "string", "format": "uuid"},
-      "airline": {"type": "string"},
-      "flightNumber": {"type": "string"},
-      "origin": {"type": "string"},
-      "destination": {"type": "string"},
-      "departureTime": {"type": "string", "format": "date-time"},
-      "arrivalTime": {"type": "string", "format": "date-time"},
-      "price": {"type": "number"}
-    }
-  },
-  "Hotel": {
-    "type": "object",
-    "properties": {
-      "id": {"type": "string", "format": "uuid"},
-      "name": {"type": "string"},
-      "location": {"type": "string"},
-      "starRating": {"type": "integer"},
-      "pricePerNight": {"type": "number"},
-      "amenities": {"type": "array", "items": {"type": "string"}}
-    }
-  },
-    "HotelAvailability": {
-      "type": "object",
-      "properties": {
-        "hotel": {"$ref": "#/components/schemas/Hotel"},
-        "totalPrice": {"type": "number"},
-        "nights": {"type": "integer"}
-      }
-    },
-    "TripPlan": {
-      "type": "object",
-      "description": "Available flights and hotels for a trip. Use the IDs to add items to cart.",
-      "properties": {
-        "origin": {"type": "string"},
-        "destination": {"type": "string"},
-        "departureDate": {"type": "string", "format": "date"},
-        "returnDate": {"type": "string", "format": "date"},
-        "nights": {"type": "integer"},
-        "travelers": {"type": "integer"},
-        "outboundFlights": {"type": "array", "items": {"$ref": "#/components/schemas/Flight"}, "description": "Flights from origin to destination on departure date"},
-        "returnFlights": {"type": "array", "items": {"$ref": "#/components/schemas/Flight"}, "description": "Flights from destination to origin on return date"},
-        "hotels": {"type": "array", "items": {"$ref": "#/components/schemas/HotelAvailability"}, "description": "Hotels at the destination"}
-      }
-    },
-    "AddFlightToCartRequest": {
-      "type": "object",
-      "required": ["flightId"],
-      "properties": {
-        "flightId": {"type": "string", "format": "uuid", "description": "The flight ID from planTrip results"},
-        "passengers": {"type": "integer", "default": 1, "description": "Number of passengers"}
-      }
-    },
-    "AddHotelToCartRequest": {
-      "type": "object",
-      "required": ["hotelId", "checkInDate", "checkOutDate"],
-      "properties": {
-        "hotelId": {"type": "string", "format": "uuid", "description": "The hotel ID from planTrip results"},
-        "checkInDate": {"type": "string", "format": "date", "description": "Check-in date (same as departure date)"},
-        "checkOutDate": {"type": "string", "format": "date", "description": "Check-out date (same as return date)"},
-        "rooms": {"type": "integer", "default": 1, "description": "Number of rooms"},
-        "guests": {"type": "integer", "default": 1, "description": "Number of guests"}
-      }
-    },
-    "CartResponse": {
-      "type": "object",
-      "properties": {
-        "items": {"type": "array", "items": {"$ref": "#/components/schemas/CartItem"}},
-        "totalItems": {"type": "integer"},
-        "totalPrice": {"type": "number"}
-      }
-    },
-    "CartItem": {
-      "type": "object",
-      "properties": {
-        "id": {"type": "string", "format": "uuid"},
-        "type": {"type": "string", "enum": ["flight", "hotel"]},
-        "description": {"type": "string"},
-        "totalPrice": {"type": "number"},
-        "flight": {"$ref": "#/components/schemas/CartFlightInfo"},
-        "hotel": {"$ref": "#/components/schemas/CartHotelInfo"}
-      }
-    },
-    "CartFlightInfo": {
-      "type": "object",
-      "properties": {
-        "id": {"type": "string", "format": "uuid"},
-        "airline": {"type": "string"},
-        "flightNumber": {"type": "string"},
-        "origin": {"type": "string"},
-        "destination": {"type": "string"},
-        "departureTime": {"type": "string", "format": "date-time"},
-        "arrivalTime": {"type": "string", "format": "date-time"},
-        "pricePerSeat": {"type": "number"},
-        "passengers": {"type": "integer"}
-      }
-    },
-    "CartHotelInfo": {
-      "type": "object",
-      "properties": {
-        "id": {"type": "string", "format": "uuid"},
-        "name": {"type": "string"},
-        "location": {"type": "string"},
-        "starRating": {"type": "integer"},
-        "pricePerNight": {"type": "number"},
-        "checkInDate": {"type": "string", "format": "date"},
-        "checkOutDate": {"type": "string", "format": "date"},
-        "nights": {"type": "integer"},
-        "rooms": {"type": "integer"},
-        "guests": {"type": "integer"}
-      }
-    },
-    "CheckoutResponse": {
-      "type": "object",
-      "properties": {
-        "success": {"type": "boolean"},
-        "message": {"type": "string"},
-        "bookedTrip": {"$ref": "#/components/schemas/BookedTripResponse"}
-      }
-    },
-    "BookedTripsResponse": {
-      "type": "object",
-      "properties": {
-        "trips": {"type": "array", "items": {"$ref": "#/components/schemas/BookedTripResponse"}},
-        "totalTrips": {"type": "integer"}
-      }
-    },
-    "BookedTripResponse": {
-      "type": "object",
-      "properties": {
-        "id": {"type": "string", "format": "uuid"},
-        "confirmationCode": {"type": "string"},
-        "status": {"type": "string"},
-        "bookedAt": {"type": "string", "format": "date-time"},
-        "totalPrice": {"type": "number"},
-        "flights": {"type": "array", "items": {"$ref": "#/components/schemas/BookedFlightInfo"}},
-        "hotels": {"type": "array", "items": {"$ref": "#/components/schemas/BookedHotelInfo"}}
-      }
-    },
-    "BookedFlightInfo": {
-      "type": "object",
-      "properties": {
-        "id": {"type": "string", "format": "uuid"},
-        "confirmationCode": {"type": "string"},
-        "airline": {"type": "string"},
-        "flightNumber": {"type": "string"},
-        "origin": {"type": "string"},
-        "destination": {"type": "string"},
-        "departureTime": {"type": "string", "format": "date-time"},
-        "arrivalTime": {"type": "string", "format": "date-time"},
-        "passengers": {"type": "integer"},
-        "pricePerSeat": {"type": "number"},
-        "totalPrice": {"type": "number"}
-      }
-    },
-    "BookedHotelInfo": {
-      "type": "object",
-      "properties": {
-        "id": {"type": "string", "format": "uuid"},
-        "confirmationCode": {"type": "string"},
-        "hotelName": {"type": "string"},
-        "location": {"type": "string"},
-        "starRating": {"type": "integer"},
-        "checkInDate": {"type": "string", "format": "date"},
-        "checkOutDate": {"type": "string", "format": "date"},
-        "nights": {"type": "integer"},
-        "rooms": {"type": "integer"},
-        "guests": {"type": "integer"},
-        "pricePerNight": {"type": "number"},
-        "totalPrice": {"type": "number"}
-      }
-    },
-    "CancelTripResponse": {
-      "type": "object",
-      "properties": {
-        "success": {"type": "boolean"},
-        "message": {"type": "string"},
-        "tripId": {"type": "string", "format": "uuid"}
-      }
-    }
-  }
-}
 }

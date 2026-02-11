@@ -1,3 +1,4 @@
+using trip_tastic.Middleware;
 using trip_tastic.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -24,8 +25,20 @@ builder.Services.AddCors(options =>
 // Add HttpContextAccessor for user context
 builder.Services.AddHttpContextAccessor();
 
+// Register request logging service (singleton to persist across requests)
+builder.Services.AddSingleton<RequestLogService>();
+
 // Register user context service (scoped to handle per-request user identity)
-builder.Services.AddScoped<IUserContext, UserContext>();
+// In Development, use DevUserContext to allow switching between simulated users
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.AddScoped<UserContext>();
+    builder.Services.AddScoped<IUserContext, DevUserContext>();
+}
+else
+{
+    builder.Services.AddScoped<IUserContext, UserContext>();
+}
 
 // Register application services (singleton to maintain sample data)
 builder.Services.AddSingleton<IFlightService, FlightService>();
@@ -46,6 +59,10 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+// Add request logging middleware (captures all requests for debug page)
+app.UseRequestLogging();
+
 app.UseStaticFiles();
 
 app.UseRouting();
