@@ -53,6 +53,11 @@ public class HotelsController : ControllerBase
             return BadRequest("Location is required");
         }
 
+        if (checkInDate == default || checkOutDate == default)
+        {
+            return BadRequest("Valid check-in and check-out dates are required (format: YYYY-MM-DD)");
+        }
+
         if (checkOutDate <= checkInDate)
         {
             return BadRequest("Check-out date must be after check-in date");

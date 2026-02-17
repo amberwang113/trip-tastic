@@ -84,7 +84,9 @@ public class HotelService : IHotelService
         // Apply optional filters
         if (!string.IsNullOrWhiteSpace(request.Location))
         {
-            query = query.Where(h => h.Location.Equals(request.Location, StringComparison.OrdinalIgnoreCase));
+            // Resolve airport codes to city names (e.g., "JFK" -> "New York")
+            var location = DestinationData.GetCityNameForAirport(request.Location) ?? request.Location;
+            query = query.Where(h => h.Location.Equals(location, StringComparison.OrdinalIgnoreCase));
         }
 
         if (request.MinStars.HasValue)
@@ -153,8 +155,11 @@ public class HotelService : IHotelService
             });
         }
 
+        // Resolve airport codes to city names (e.g., "JFK" -> "New York")
+        var location = DestinationData.GetCityNameForAirport(request.Location) ?? request.Location;
+
         var matchingHotels = _hotels
-            .Where(h => h.Location.Equals(request.Location, StringComparison.OrdinalIgnoreCase) &&
+            .Where(h => h.Location.Equals(location, StringComparison.OrdinalIgnoreCase) &&
                         h.AvailableRooms >= request.Rooms)
             .Select(h => new HotelAvailability
             {

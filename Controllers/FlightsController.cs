@@ -51,6 +51,11 @@ public class FlightsController : ControllerBase
             return BadRequest("Origin and destination are required");
         }
 
+        if (departureDate == default)
+        {
+            return BadRequest("A valid departure date is required (format: YYYY-MM-DD)");
+        }
+
         if (passengers < 1)
         {
             return BadRequest("At least one passenger is required");
