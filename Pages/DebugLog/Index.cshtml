@@ -1,0 +1,246 @@
+@page
+@model trip_tastic.Pages.DebugLog.IndexModel
+@{
+    ViewData["Title"] = "Request Debug Log";
+}
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="display-6"><i class="bi bi-bug-fill text-warning"></i> Request Debug Log</h1>
+            <p class="text-muted mb-0">
+                Showing @Model.Logs.Count of @Model.TotalLogs total logged requests
+            </p>
+        </div>
+        <div class="d-flex gap-2 align-items-center">
+            <div class="text-end me-3">
+                <small class="text-muted">Current User:</small><br/>
+                @if (Model.CurrentUserIsAuthenticated)
+                {
+                    <span class="badge bg-success"><i class="bi bi-person-check-fill"></i> @Model.CurrentUserName</span>
+                }
+                else
+                {
+                    <span class="badge bg-secondary"><i class="bi bi-person-slash"></i> Anonymous</span>
+                }
+            </div>
+            <form method="post" asp-page-handler="Clear" class="d-inline">
+                <button type="submit" class="btn btn-outline-danger btn-sm">
+                    <i class="bi bi-trash"></i> Clear Logs
+                </button>
+            </form>
+            <button type="button" class="btn btn-outline-primary btn-sm" onclick="location.reload()">
+                <i class="bi bi-arrow-clockwise"></i> Refresh
+            </button>
+            <div class="form-check form-switch ms-2">
+                <input class="form-check-input" type="checkbox" id="autoRefresh">
+                <label class="form-check-label small" for="autoRefresh">Auto-refresh</label>
+            </div>
+        </div>
+    </div>
+
+    @if (Model.Logs.Count == 0)
+    {
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i> No requests logged yet. Navigate around the site to see requests appear here.
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle" style="font-size: 0.85rem;">
+                <thead class="table-dark sticky-top">
+                    <tr>
+                        <th style="width: 140px;">Time</th>
+                        <th style="width: 70px;">Status</th>
+                        <th style="width: 60px;">Method</th>
+                        <th>Path</th>
+                        <th style="width: 120px;">Auth</th>
+                        <th style="width: 180px;">User</th>
+                        <th style="width: 80px;">Duration</th>
+                        <th style="width: 50px;">Details</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var log in Model.Logs)
+                    {
+                        var statusClass = log.StatusCode switch
+                        {
+                            >= 200 and < 300 => "bg-success",
+                            >= 300 and < 400 => "bg-info",
+                            >= 400 and < 500 => "bg-warning text-dark",
+                            >= 500 => "bg-danger",
+                            _ => "bg-secondary"
+                        };
+                        
+                        var methodClass = log.Method switch
+                        {
+                            "GET" => "text-primary",
+                            "POST" => "text-success",
+                            "PUT" => "text-warning",
+                            "DELETE" => "text-danger",
+                            _ => "text-secondary"
+                        };
+                        
+                        var authBadge = log.IsAuthenticated 
+                            ? "<span class='badge bg-success'>Auth</span>" 
+                            : "<span class='badge bg-secondary'>Anon</span>";
+                            
+                        if (!string.IsNullOrEmpty(log.AuthorizationHeader))
+                        {
+                            authBadge += " <span class='badge bg-info'>Bearer</span>";
+                        }
+                        if (log.HasAccessToken)
+                        {
+                            authBadge += " <span class='badge bg-primary'>AAD</span>";
+                        }
+                        
+                        <tr>
+                            <td class="text-muted font-monospace" style="font-size: 0.75rem;">
+                                @log.Timestamp.ToString("HH:mm:ss.fff")<br/>
+                                <small class="text-muted">@log.Timestamp.ToString("yyyy-MM-dd")</small>
+                            </td>
+                            <td>
+                                <span class="badge @statusClass">@log.StatusCode</span>
+                            </td>
+                            <td>
+                                <span class="fw-bold @methodClass">@log.Method</span>
+                            </td>
+                            <td class="font-monospace text-truncate" style="max-width: 300px;" title="@log.Path@log.QueryString">
+                                @log.Path
+                                @if (!string.IsNullOrEmpty(log.QueryString))
+                                {
+                                    <small class="text-muted">@log.QueryString</small>
+                                }
+                            </td>
+                            <td>
+                                @Html.Raw(authBadge)
+                            </td>
+                            <td class="text-truncate" style="max-width: 180px;" title="@log.UserId">
+                                @if (log.IsAuthenticated)
+                                {
+                                    <i class="bi bi-person-fill text-success"></i>
+                                    <span>@(log.UserName ?? log.UserEmail ?? "Unknown")</span>
+                                    @if (!string.IsNullOrEmpty(log.IdentityType))
+                                    {
+                                        <br/><small class="text-muted">idtyp: @log.IdentityType</small>
+                                    }
+                                }
+                                else
+                                {
+                                    <span class="text-muted">-</span>
+                                }
+                            </td>
+                            <td class="text-end">
+                                <span class="@(log.DurationMs > 1000 ? "text-danger fw-bold" : log.DurationMs > 200 ? "text-warning" : "text-muted")">
+                                    @log.DurationMs ms
+                                </span>
+                            </td>
+                            <td>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" 
+                                        data-bs-toggle="modal" data-bs-target="#detailModal"
+                                        onclick="showDetails(@System.Text.Json.JsonSerializer.Serialize(log))">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+<!-- Detail Modal -->
+<div class="modal fade" id="detailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-info-circle"></i> Request Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="detailModalBody">
+                <!-- Populated by JavaScript -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    // Auto-refresh functionality
+    let refreshInterval = null;
+    document.getElementById('autoRefresh').addEventListener('change', function() {
+        if (this.checked) {
+            refreshInterval = setInterval(() => location.reload(), 3000);
+        } else {
+            clearInterval(refreshInterval);
+        }
+    });
+
+    function showDetails(log) {
+        const body = document.getElementById('detailModalBody');
+        
+        let html = `
+            <div class="row">
+                <div class="col-md-6">
+                    <h6 class="text-primary"><i class="bi bi-globe"></i> Request</h6>
+                    <table class="table table-sm">
+                        <tr><th>Method</th><td><span class="badge bg-primary">${log.Method}</span></td></tr>
+                        <tr><th>Path</th><td class="font-monospace">${log.Path}</td></tr>
+                        <tr><th>Query</th><td class="font-monospace">${log.QueryString || '-'}</td></tr>
+                        <tr><th>Status</th><td><span class="badge ${log.StatusCode < 400 ? 'bg-success' : 'bg-danger'}">${log.StatusCode}</span></td></tr>
+                        <tr><th>Duration</th><td>${log.DurationMs} ms</td></tr>
+                        <tr><th>Time</th><td>${log.Timestamp}</td></tr>
+                    </table>
+                </div>
+                <div class="col-md-6">
+                    <h6 class="text-success"><i class="bi bi-shield-check"></i> Authentication</h6>
+                    <table class="table table-sm">
+                        <tr><th>Authenticated</th><td>${log.IsAuthenticated ? '<span class="badge bg-success">Yes</span>' : '<span class="badge bg-secondary">No</span>'}</td></tr>
+                        <tr><th>User ID</th><td class="font-monospace" style="font-size:0.75rem;">${log.UserId || '-'}</td></tr>
+                        <tr><th>User Name</th><td>${log.UserName || '-'}</td></tr>
+                        <tr><th>Email</th><td>${log.UserEmail || '-'}</td></tr>
+                        <tr><th>Identity Type</th><td>${log.IdentityType || '-'}</td></tr>
+                        <tr><th>IDP</th><td>${log.IdentityProvider || '-'}</td></tr>
+                    </table>
+                </div>
+            </div>
+            
+            <h6 class="text-info mt-3"><i class="bi bi-key"></i> EasyAuth Headers</h6>
+            <table class="table table-sm">
+                <tr><th>X-MS-CLIENT-PRINCIPAL-ID</th><td class="font-monospace" style="font-size:0.75rem;">${log.EasyAuthPrincipalId || '<span class="text-muted">not present</span>'}</td></tr>
+                <tr><th>X-MS-CLIENT-PRINCIPAL-NAME</th><td>${log.EasyAuthPrincipalName || '<span class="text-muted">not present</span>'}</td></tr>
+                <tr><th>X-MS-CLIENT-PRINCIPAL-IDP</th><td>${log.EasyAuthIdp || '<span class="text-muted">not present</span>'}</td></tr>
+                <tr><th>Access Token</th><td>${log.HasAccessToken ? '<span class="badge bg-success">Present</span>' : '<span class="text-muted">not present</span>'}</td></tr>
+                <tr><th>ID Token</th><td>${log.HasIdToken ? '<span class="badge bg-success">Present</span>' : '<span class="text-muted">not present</span>'}</td></tr>
+                <tr><th>Authorization Header</th><td>${log.AuthorizationHeader || '<span class="text-muted">not present</span>'}</td></tr>
+            </table>
+            
+            <h6 class="text-warning mt-3"><i class="bi bi-pc-display"></i> Client Info</h6>
+            <table class="table table-sm">
+                <tr><th>Remote IP</th><td class="font-monospace">${log.RemoteIp || '-'}</td></tr>
+                <tr><th>User Agent</th><td style="font-size:0.75rem; word-break:break-all;">${log.UserAgent || '-'}</td></tr>
+                <tr><th>Client Source</th><td><span class="badge bg-info">${log.UserAgentSource || 'Unknown'}</span></td></tr>
+                <tr><th>Referer</th><td>${log.Referer || '-'}</td></tr>
+                <tr><th>Content-Type</th><td>${log.ContentType || '-'}</td></tr>
+                <tr><th>Content-Length</th><td>${log.ContentLength || '-'}</td></tr>
+            </table>
+        `;
+        
+        if (log.InterestingHeaders && Object.keys(log.InterestingHeaders).length > 0) {
+            html += `<h6 class="text-secondary mt-3"><i class="bi bi-list"></i> Other Headers</h6>
+                     <table class="table table-sm">`;
+            for (const [key, value] of Object.entries(log.InterestingHeaders)) {
+                html += `<tr><th>${key}</th><td class="font-monospace" style="font-size:0.75rem;">${value}</td></tr>`;
+            }
+            html += `</table>`;
+        }
+        
+        body.innerHTML = html;
+    }
+</script>
+}
