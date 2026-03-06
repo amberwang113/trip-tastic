@@ -61,12 +61,6 @@ public class RequestLoggingMiddleware
             ContentType = request.ContentType,
             ContentLength = request.ContentLength,
             
-            // EasyAuth headers
-            EasyAuthPrincipalId = headers["X-MS-CLIENT-PRINCIPAL-ID"].FirstOrDefault(),
-            EasyAuthPrincipalName = headers["X-MS-CLIENT-PRINCIPAL-NAME"].FirstOrDefault(),
-            EasyAuthIdp = headers["X-MS-CLIENT-PRINCIPAL-IDP"].FirstOrDefault(),
-            HasAccessToken = !string.IsNullOrEmpty(headers["X-MS-TOKEN-AAD-ACCESS-TOKEN"].FirstOrDefault()),
-            HasIdToken = !string.IsNullOrEmpty(headers["X-MS-TOKEN-AAD-ID-TOKEN"].FirstOrDefault()),
         };
 
         // Check authorization header
@@ -84,20 +78,10 @@ public class RequestLoggingMiddleware
         }
 
         // Determine authentication status
-        entry.IsAuthenticated = !string.IsNullOrEmpty(entry.EasyAuthPrincipalId) 
-                               || context.User?.Identity?.IsAuthenticated == true;
+        entry.IsAuthenticated = context.User?.Identity?.IsAuthenticated == true;
         
-        // Get user info from EasyAuth headers or claims
-        if (!string.IsNullOrEmpty(entry.EasyAuthPrincipalId))
-        {
-            entry.UserId = entry.EasyAuthPrincipalId;
-            entry.UserName = entry.EasyAuthPrincipalName;
-            entry.UserEmail = entry.EasyAuthPrincipalName?.Contains('@') == true 
-                ? entry.EasyAuthPrincipalName : null;
-            entry.IdentityProvider = entry.EasyAuthIdp;
-            entry.IdentityType = "user"; // EasyAuth headers are typically from users
-        }
-        else if (context.User?.Identity?.IsAuthenticated == true)
+        // Get user info from claims
+        if (context.User?.Identity?.IsAuthenticated == true)
         {
             entry.UserId = context.User.FindFirst("oid")?.Value 
                         ?? context.User.FindFirst("sub")?.Value;

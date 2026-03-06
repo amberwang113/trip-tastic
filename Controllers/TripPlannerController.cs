@@ -1,12 +1,18 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using trip_tastic.Models;
 using trip_tastic.Services;
 
 namespace trip_tastic.Controllers;
 
+/// <summary>
+/// Trip planning endpoints (search aggregation).
+/// Requires at least Reader role to browse plans, User+ to create plans.
+/// </summary>
 [ApiController]
 [Route("api/[controller]")]
 [Produces("application/json")]
+[Authorize(Policy = AuthPolicies.RequireAuthenticated)]
 public class TripPlannerController : ControllerBase
 {
     private readonly ITripPlannerService _tripPlannerService;

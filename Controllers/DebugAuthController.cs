@@ -1,14 +1,17 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using trip_tastic.Models;
 using trip_tastic.Services;
 
 namespace trip_tastic.Controllers;
 
 /// <summary>
 /// Debug controller to inspect authentication state.
-/// Remove this in production if not needed.
+/// Restricted to Admin role in production.
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
+[Authorize(Policy = AuthPolicies.RequireAdmin)]
 public class DebugAuthController : ControllerBase
 {
     private readonly IUserContext _userContext;
@@ -19,35 +22,24 @@ public class DebugAuthController : ControllerBase
     }
 
     /// <summary>
-    /// Returns current authentication state and relevant headers for debugging.
+    /// Returns current authentication state and claims for debugging.
     /// </summary>
     [HttpGet]
     public ActionResult GetAuthDebugInfo()
     {
-        // Get EasyAuth headers
-        var easyAuthHeaders = new Dictionary<string, string?>();
-        var headerNames = new[]
-        {
-            "X-MS-CLIENT-PRINCIPAL-ID",
-            "X-MS-CLIENT-PRINCIPAL-NAME", 
-            "X-MS-CLIENT-PRINCIPAL-IDP",
-            "X-MS-CLIENT-PRINCIPAL",
-            "X-MS-TOKEN-AAD-ACCESS-TOKEN",
-            "X-MS-TOKEN-AAD-ID-TOKEN"
-        };
-
-        foreach (var header in headerNames)
-        {
-            var value = Request.Headers[header].FirstOrDefault();
-            easyAuthHeaders[header] = string.IsNullOrEmpty(value) 
-                ? null 
-                : (header.Contains("TOKEN") ? "[PRESENT - REDACTED]" : value);
-        }
-
         // Get claims from HttpContext.User
         var claims = HttpContext.User?.Claims?
             .Select(c => new { c.Type, c.Value })
             .ToList() ?? [];
+
+        // Check for Authorization header (redacted)
+        var authHeader = Request.Headers.Authorization.FirstOrDefault();
+        string? authHeaderInfo = null;
+        if (!string.IsNullOrEmpty(authHeader))
+        {
+            authHeaderInfo = authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)
+                ? "Bearer [REDACTED]" : "[PRESENT - REDACTED]";
+        }
 
         return Ok(new
         {
@@ -67,7 +59,7 @@ public class DebugAuthController : ControllerBase
                 AuthenticationType = HttpContext.User?.Identity?.AuthenticationType,
                 ClaimsCount = claims.Count
             },
-            EasyAuthHeaders = easyAuthHeaders,
+            AuthorizationHeader = authHeaderInfo,
             Claims = claims.Take(20) // Limit to first 20 claims
         });
     }

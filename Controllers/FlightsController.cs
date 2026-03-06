@@ -1,12 +1,18 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using trip_tastic.Models;
 using trip_tastic.Services;
 
 namespace trip_tastic.Controllers;
 
+/// <summary>
+/// Flight search and booking endpoints.
+/// Search/browse: any authenticated user (Reader+). Booking: User+ role required.
+/// </summary>
 [ApiController]
 [Route("api/[controller]")]
 [Produces("application/json")]
+[Authorize(Policy = AuthPolicies.RequireAuthenticated)]
 public class FlightsController : ControllerBase
 {
     private readonly IFlightService _flightService;
@@ -96,6 +102,7 @@ public class FlightsController : ControllerBase
     /// </summary>
     /// <param name="request">Booking details</param>
     /// <returns>Booking confirmation</returns>
+    [Authorize(Policy = AuthPolicies.RequireUser)]
     [HttpPost("book")]
     [ProducesResponseType(typeof(FlightBooking), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]

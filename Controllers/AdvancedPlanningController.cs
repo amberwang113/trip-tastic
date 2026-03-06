@@ -1,12 +1,18 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using trip_tastic.Models;
 using trip_tastic.Services;
 
 namespace trip_tastic.Controllers;
 
+/// <summary>
+/// Advanced planning endpoints (flexible dates, destination comparison, budget optimizer).
+/// Requires at least authenticated user access.
+/// </summary>
 [ApiController]
 [Route("api/[controller]")]
 [Produces("application/json")]
+[Authorize(Policy = AuthPolicies.RequireAuthenticated)]
 public class AdvancedPlanningController : ControllerBase
 {
     private readonly IAdvancedPlanningService _advancedPlanningService;

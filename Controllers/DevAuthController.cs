@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using trip_tastic.Services;
 
@@ -6,9 +7,11 @@ namespace trip_tastic.Controllers;
 /// <summary>
 /// Development-only controller for switching between simulated users.
 /// This controller is only registered in Development environment.
+/// AllowAnonymous because it IS the auth simulation mechanism.
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
+[AllowAnonymous]
 public class DevAuthController : ControllerBase
 {
     private const string DevUserCookieName = "DevUser";

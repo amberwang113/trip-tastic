@@ -90,10 +90,6 @@
                         {
                             authBadge += " <span class='badge bg-info'>Bearer</span>";
                         }
-                        if (log.HasAccessToken)
-                        {
-                            authBadge += " <span class='badge bg-primary'>AAD</span>";
-                        }
                         
                         <tr>
                             <td class="text-muted font-monospace" style="font-size: 0.75rem;">
@@ -210,13 +206,8 @@
                 </div>
             </div>
             
-            <h6 class="text-info mt-3"><i class="bi bi-key"></i> EasyAuth Headers</h6>
+            <h6 class="text-info mt-3"><i class="bi bi-key"></i> Auth Details</h6>
             <table class="table table-sm">
-                <tr><th>X-MS-CLIENT-PRINCIPAL-ID</th><td class="font-monospace" style="font-size:0.75rem;">${log.EasyAuthPrincipalId || '<span class="text-muted">not present</span>'}</td></tr>
-                <tr><th>X-MS-CLIENT-PRINCIPAL-NAME</th><td>${log.EasyAuthPrincipalName || '<span class="text-muted">not present</span>'}</td></tr>
-                <tr><th>X-MS-CLIENT-PRINCIPAL-IDP</th><td>${log.EasyAuthIdp || '<span class="text-muted">not present</span>'}</td></tr>
-                <tr><th>Access Token</th><td>${log.HasAccessToken ? '<span class="badge bg-success">Present</span>' : '<span class="text-muted">not present</span>'}</td></tr>
-                <tr><th>ID Token</th><td>${log.HasIdToken ? '<span class="badge bg-success">Present</span>' : '<span class="text-muted">not present</span>'}</td></tr>
                 <tr><th>Authorization Header</th><td>${log.AuthorizationHeader || '<span class="text-muted">not present</span>'}</td></tr>
             </table>
             

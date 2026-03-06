@@ -1,11 +1,16 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Text.Json.Serialization;
 
 namespace trip_tastic.Controllers;
 
+/// <summary>
+/// System utility endpoints. Allowed for any caller (no auth required).
+/// </summary>
 [ApiController]
 [Route("api/[controller]")]
 [Produces("application/json")]
+[AllowAnonymous]
 public class SystemController : ControllerBase
 {
     /// <summary>

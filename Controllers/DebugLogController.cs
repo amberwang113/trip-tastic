@@ -1,13 +1,17 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using trip_tastic.Models;
 using trip_tastic.Services;
 
 namespace trip_tastic.Controllers;
 
 /// <summary>
 /// API endpoints for the request debug log.
+/// Restricted to Admin role.
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
+[Authorize(Policy = AuthPolicies.RequireAdmin)]
 public class DebugLogController : ControllerBase
 {
     private readonly RequestLogService _logService;
@@ -77,8 +81,7 @@ public class DebugLogController : ControllerBase
                 .Distinct()
                 .Count(),
             
-            RequestsWithBearerToken = logs.Count(l => !string.IsNullOrEmpty(l.AuthorizationHeader)),
-            RequestsWithEasyAuth = logs.Count(l => !string.IsNullOrEmpty(l.EasyAuthPrincipalId))
+            RequestsWithBearerToken = logs.Count(l => !string.IsNullOrEmpty(l.AuthorizationHeader))
         };
 
         return Ok(stats);

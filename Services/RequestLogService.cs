@@ -50,13 +50,6 @@ public class RequestLogEntry
     public string? IdentityProvider { get; set; }
     public string? IdentityType { get; set; } // "user", "app", or null
     
-    // EasyAuth headers
-    public string? EasyAuthPrincipalId { get; set; }
-    public string? EasyAuthPrincipalName { get; set; }
-    public string? EasyAuthIdp { get; set; }
-    public bool HasAccessToken { get; set; }
-    public bool HasIdToken { get; set; }
-    
     // Request details
     public string? UserAgent { get; set; }
     public string? UserAgentSource { get; set; } // "Browser", "API Client", "VS Code", "Unknown"

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Text.Json.Serialization;
 using trip_tastic.Models;
@@ -5,9 +6,14 @@ using trip_tastic.Services;
 
 namespace trip_tastic.Controllers;
 
+/// <summary>
+/// Shopping cart and trip management endpoints.
+/// Requires User+ role for all operations (cart is a write operation).
+/// </summary>
 [ApiController]
 [Route("api/[controller]")]
 [Produces("application/json")]
+[Authorize(Policy = AuthPolicies.RequireUser)]
 public class CartController : ControllerBase
 {
     private readonly ICartService _cartService;
