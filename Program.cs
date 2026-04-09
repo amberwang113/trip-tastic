@@ -9,8 +9,7 @@ using trip_tastic.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.Services.AddRazorPages()
-    .AddMicrosoftIdentityUI(); // Adds /MicrosoftIdentity/Account/SignIn & SignOut routes
+builder.Services.AddRazorPages();
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
@@ -22,10 +21,29 @@ builder.Services.AddControllers()
 //   - Browser (Razor Pages): OpenID Connect → Cookie authentication
 //   - API callers: JWT Bearer token validation
 //
-// In Development, a DevAuth cookie-based scheme is also registered so the
-// dev user switcher works with [Authorize] attributes without real JWTs.
+// If AzureAd config is not provided (placeholder values), auth is disabled
+// and the DevAuth handler is used so the site runs without Entra ID.
 // ---------------------------------------------------------------------------
-if (builder.Environment.IsDevelopment())
+var azureAdSection = builder.Configuration.GetSection("AzureAd");
+var tenantId = azureAdSection["TenantId"];
+var clientId = azureAdSection["ClientId"];
+var authConfigured = !string.IsNullOrEmpty(tenantId)
+                  && !string.IsNullOrEmpty(clientId)
+                  && !tenantId.StartsWith("YOUR_", StringComparison.OrdinalIgnoreCase)
+                  && !clientId.StartsWith("YOUR_", StringComparison.OrdinalIgnoreCase);
+
+if (!authConfigured)
+{
+    // No real auth configured — use DevAuth handler so site works without Entra ID
+    builder.Services.AddAuthentication(options =>
+        {
+            options.DefaultScheme = DevAuthenticationHandler.SchemeName;
+            options.DefaultChallengeScheme = DevAuthenticationHandler.SchemeName;
+        })
+        .AddScheme<AuthenticationSchemeOptions, DevAuthenticationHandler>(
+            DevAuthenticationHandler.SchemeName, _ => { });
+}
+else if (builder.Environment.IsDevelopment())
 {
     builder.Services.AddAuthentication(options =>
         {
@@ -34,11 +52,9 @@ if (builder.Environment.IsDevelopment())
         })
         .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
         {
-            var azureAdSection = builder.Configuration.GetSection("AzureAd");
-            var tenantId = azureAdSection["TenantId"] ?? "common";
             var instance = azureAdSection["Instance"]?.TrimEnd('/') ?? "https://login.microsoftonline.com";
             options.Authority = $"{instance}/{tenantId}/v2.0";
-            options.Audience = azureAdSection["Audience"] ?? azureAdSection["ClientId"];
+            options.Audience = azureAdSection["Audience"] ?? clientId;
             options.TokenValidationParameters.ValidateIssuer = true;
         })
         .AddScheme<AuthenticationSchemeOptions, DevAuthenticationHandler>(
@@ -58,25 +74,39 @@ if (builder.Environment.IsDevelopment())
 }
 else
 {
-    // Production: OIDC + Cookie for browser, JWT Bearer for API
+    // Production: OIDC implicit flow + Cookie for browser, JWT Bearer for API.
+    // No client secret/cert/MSI needed — tokens are returned directly in the
+    // browser redirect rather than exchanged via a back-channel code redemption.
+    var instance = azureAdSection["Instance"]?.TrimEnd('/') ?? "https://login.microsoftonline.com";
+
     builder.Services.AddAuthentication(options =>
         {
             options.DefaultScheme = "BrowserOrApi";
-            options.DefaultChallengeScheme = "BrowserOrApi";
+            options.DefaultChallengeScheme = OpenIdConnectDefaults.AuthenticationScheme;
+            options.DefaultSignInScheme = Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationDefaults.AuthenticationScheme;
         })
-        .AddMicrosoftIdentityWebApp(builder.Configuration.GetSection("AzureAd"),
-            OpenIdConnectDefaults.AuthenticationScheme)
-        .EnableTokenAcquisitionToCallDownstreamApi()
-        .AddInMemoryTokenCaches();
+        .AddCookie()
+        .AddOpenIdConnect(OpenIdConnectDefaults.AuthenticationScheme, options =>
+        {
+            options.Authority = $"{instance}/{tenantId}/v2.0";
+            options.ClientId = clientId;
+            options.ResponseType = "id_token";       // Implicit flow — no code redemption
+            options.UsePkce = false;                  // Not applicable for implicit flow
+            options.SaveTokens = true;
+            options.GetClaimsFromUserInfoEndpoint = false;
+            options.CallbackPath = azureAdSection["CallbackPath"] ?? "/signin-oidc";
+            options.SignedOutCallbackPath = azureAdSection["SignedOutCallbackPath"] ?? "/signout-callback-oidc";
 
-    builder.Services.AddAuthentication()
+            options.TokenValidationParameters.ValidateIssuer = true;
+            options.TokenValidationParameters.ValidIssuer = $"{instance}/{tenantId}/v2.0";
+
+            // Map Entra ID 'roles' claim into ClaimTypes.Role for [Authorize(Roles = ...)]
+            options.TokenValidationParameters.RoleClaimType = "roles";
+        })
         .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
         {
-            var azureAdSection = builder.Configuration.GetSection("AzureAd");
-            var tenantId = azureAdSection["TenantId"] ?? "common";
-            var instance = azureAdSection["Instance"]?.TrimEnd('/') ?? "https://login.microsoftonline.com";
             options.Authority = $"{instance}/{tenantId}/v2.0";
-            options.Audience = azureAdSection["Audience"] ?? azureAdSection["ClientId"];
+            options.Audience = azureAdSection["Audience"] ?? clientId;
             options.TokenValidationParameters.ValidateIssuer = true;
         })
         .AddPolicyScheme("BrowserOrApi", "Browser (OIDC cookie) or API (JWT Bearer)", options =>
@@ -94,10 +124,14 @@ else
                 {
                     return JwtBearerDefaults.AuthenticationScheme;
                 }
-                // Browser requests → OpenID Connect + Cookie
-                return OpenIdConnectDefaults.AuthenticationScheme;
+                // Browser requests → Cookie (backed by OIDC implicit sign-in)
+                return Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationDefaults.AuthenticationScheme;
             };
         });
+
+    // Only register MicrosoftIdentityUI routes when OpenIdConnect scheme is available
+    builder.Services.AddRazorPages()
+        .AddMicrosoftIdentityUI();
 }
 
 // ---------------------------------------------------------------------------
@@ -136,8 +170,8 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<RequestLogService>();
 
 // Register user context service (scoped to handle per-request user identity)
-// In Development, use DevUserContext to allow switching between simulated users
-if (builder.Environment.IsDevelopment())
+// Use DevUserContext when in Development or when auth is not configured
+if (builder.Environment.IsDevelopment() || !authConfigured)
 {
     builder.Services.AddScoped<UserContext>();
     builder.Services.AddScoped<IUserContext, DevUserContext>();

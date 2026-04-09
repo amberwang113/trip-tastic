@@ -5,7 +5,7 @@
   "description": "Travel API for flights and hotels. Flights use airport codes (e.g. JFK, LAX). Hotels use city names (e.g. New York, Los Angeles) or airport codes. Call getCurrentDate first, then getAirports or getLocations to discover valid values.",
   "version": "2.0.0"
 },
-"servers": [{ "url": "https://triptastic.azurewebsites.net" }],
+"servers": [{ "url": "https://triptastic-mvp-fsdua2hkfccmdyfb.amberwang2.eastus2-01.antares-test.windows-int.net" }],
 "paths": {
   "/api/System/current-date": {
     "get": {
