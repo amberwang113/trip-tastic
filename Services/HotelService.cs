@@ -17,11 +17,18 @@ public class HotelService : IHotelService
 
     private readonly List<Hotel> _hotels = [];
     private readonly Dictionary<Guid, HotelBooking> _bookings = [];
-    private readonly Random _random = new();
+    private readonly Random _random = new(42); // Fixed seed for reproducibility
 
     public HotelService()
     {
         GenerateSampleHotels();
+    }
+
+    private Guid NextDeterministicGuid()
+    {
+        var bytes = new byte[16];
+        _random.NextBytes(bytes);
+        return new Guid(bytes);
     }
 
     public IEnumerable<LocationInfo> GetAvailableLocations()
@@ -58,6 +65,7 @@ public class HotelService : IHotelService
                 var imageId = _random.Next(1, 200);
                 _hotels.Add(new Hotel
                 {
+                    Id = NextDeterministicGuid(),
                     Name = $"{baseName} {location}",
                     Location = location,
                     Address = $"{_random.Next(1, 999)} {GetRandomStreetName()} Street, {location}",

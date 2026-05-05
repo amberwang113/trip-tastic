@@ -18,6 +18,13 @@ public class FlightService : IFlightService
         RegenerateFlightsIfNeeded();
     }
 
+    private Guid NextDeterministicGuid()
+    {
+        var bytes = new byte[16];
+        _random.NextBytes(bytes);
+        return new Guid(bytes);
+    }
+
     public IEnumerable<AirportInfo> GetAvailableAirports()
     {
         return DestinationData.All.Select(d => new AirportInfo
@@ -75,6 +82,7 @@ public class FlightService : IFlightService
 
                         _flights.Add(new Flight
                         {
+                            Id = NextDeterministicGuid(),
                             Airline = airline,
                             FlightNumber = $"{airline[..2].ToUpper()}{_random.Next(100, 9999)}",
                             Origin = origin,

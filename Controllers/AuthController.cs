@@ -87,10 +87,10 @@ public class AuthController : ControllerBase
             },
             Policies = new[]
             {
-                new PolicyInfo { Name = "RequireAdmin", AllowedRoles = new[] { "TripTastic.Admin" } },
-                new PolicyInfo { Name = "RequireUser", AllowedRoles = new[] { "TripTastic.User", "TripTastic.Admin" } },
-                new PolicyInfo { Name = "RequireReader", AllowedRoles = new[] { "TripTastic.Reader", "TripTastic.User", "TripTastic.Admin" } },
-                new PolicyInfo { Name = "RequireAuthenticated", AllowedRoles = Array.Empty<string>(), Note = "Any authenticated user, no specific role required." }
+                new PolicyInfo { Name = "RequireAdmin", AllowedRoles = Array.Empty<string>(), Note = "Any authenticated user (roles disabled)." },
+                new PolicyInfo { Name = "RequireUser", AllowedRoles = Array.Empty<string>(), Note = "Any authenticated user (roles disabled)." },
+                new PolicyInfo { Name = "RequireReader", AllowedRoles = Array.Empty<string>(), Note = "Any authenticated user (roles disabled)." },
+                new PolicyInfo { Name = "RequireAuthenticated", AllowedRoles = Array.Empty<string>(), Note = "Any authenticated user." }
             }
         });
     }

@@ -24,49 +24,38 @@ builder.Services.AddControllers()
 // If AzureAd config is not provided (placeholder values), auth is disabled
 // and the DevAuth handler is used so the site runs without Entra ID.
 // ---------------------------------------------------------------------------
+var enableAuth = builder.Configuration.GetValue<bool>("EnableAuth", false);
 var azureAdSection = builder.Configuration.GetSection("AzureAd");
 var tenantId = azureAdSection["TenantId"];
 var clientId = azureAdSection["ClientId"];
-var authConfigured = !string.IsNullOrEmpty(tenantId)
+var authConfigured = enableAuth
+                  && !string.IsNullOrEmpty(tenantId)
                   && !string.IsNullOrEmpty(clientId)
                   && !tenantId.StartsWith("YOUR_", StringComparison.OrdinalIgnoreCase)
                   && !clientId.StartsWith("YOUR_", StringComparison.OrdinalIgnoreCase);
 
 if (!authConfigured)
 {
-    // No real auth configured — use DevAuth handler so site works without Entra ID
+    // No real auth configured — use DevAuth + EasyAuth (App Service built-in auth).
+    // If X-MS-CLIENT-PRINCIPAL header is present (App Service EasyAuth), use that;
+    // otherwise fall back to DevAuth so the site works locally without Entra ID.
     builder.Services.AddAuthentication(options =>
         {
-            options.DefaultScheme = DevAuthenticationHandler.SchemeName;
-            options.DefaultChallengeScheme = DevAuthenticationHandler.SchemeName;
+            options.DefaultScheme = "DevOrEasyAuth";
+            options.DefaultChallengeScheme = "DevOrEasyAuth";
         })
-        .AddScheme<AuthenticationSchemeOptions, DevAuthenticationHandler>(
-            DevAuthenticationHandler.SchemeName, _ => { });
-}
-else if (builder.Environment.IsDevelopment())
-{
-    builder.Services.AddAuthentication(options =>
-        {
-            options.DefaultScheme = "DevOrBearer";
-            options.DefaultChallengeScheme = "DevOrBearer";
-        })
-        .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
-        {
-            var instance = azureAdSection["Instance"]?.TrimEnd('/') ?? "https://login.microsoftonline.com";
-            options.Authority = $"{instance}/{tenantId}/v2.0";
-            options.Audience = azureAdSection["Audience"] ?? clientId;
-            options.TokenValidationParameters.ValidateIssuer = true;
-        })
+        .AddScheme<AuthenticationSchemeOptions, EasyAuthHandler>(
+            EasyAuthHandler.SchemeName, _ => { })
         .AddScheme<AuthenticationSchemeOptions, DevAuthenticationHandler>(
             DevAuthenticationHandler.SchemeName, _ => { })
-        .AddPolicyScheme("DevOrBearer", "Dev cookie or JWT Bearer", options =>
+        .AddPolicyScheme("DevOrEasyAuth", "EasyAuth (App Service) or Dev cookie", options =>
         {
             options.ForwardDefaultSelector = context =>
             {
-                var authHeader = context.Request.Headers.Authorization.FirstOrDefault();
-                if (authHeader?.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase) == true)
+                // App Service EasyAuth injects X-MS-CLIENT-PRINCIPAL header
+                if (context.Request.Headers.ContainsKey("X-MS-CLIENT-PRINCIPAL"))
                 {
-                    return JwtBearerDefaults.AuthenticationScheme;
+                    return EasyAuthHandler.SchemeName;
                 }
                 return DevAuthenticationHandler.SchemeName;
             };
@@ -74,18 +63,22 @@ else if (builder.Environment.IsDevelopment())
 }
 else
 {
-    // Production: OIDC implicit flow + Cookie for browser, JWT Bearer for API.
-    // No client secret/cert/MSI needed — tokens are returned directly in the
-    // browser redirect rather than exchanged via a back-channel code redemption.
+    // Auth configured: OIDC implicit flow + Cookie for browser, JWT Bearer for API,
+    // with EasyAuth as a fallback when running on App Service.
     var instance = azureAdSection["Instance"]?.TrimEnd('/') ?? "https://login.microsoftonline.com";
 
     builder.Services.AddAuthentication(options =>
         {
             options.DefaultScheme = "BrowserOrApi";
-            options.DefaultChallengeScheme = OpenIdConnectDefaults.AuthenticationScheme;
+            options.DefaultChallengeScheme = "BrowserOrApi";
             options.DefaultSignInScheme = Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationDefaults.AuthenticationScheme;
         })
-        .AddCookie()
+        .AddCookie(cookieOptions =>
+        {
+            // When Cookie auth needs to challenge (unauthenticated browser user),
+            // forward to OIDC which redirects to Entra ID login page.
+            cookieOptions.ForwardChallenge = OpenIdConnectDefaults.AuthenticationScheme;
+        })
         .AddOpenIdConnect(OpenIdConnectDefaults.AuthenticationScheme, options =>
         {
             options.Authority = $"{instance}/{tenantId}/v2.0";
@@ -106,30 +99,45 @@ else
         .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
         {
             options.Authority = $"{instance}/{tenantId}/v2.0";
-            options.Audience = azureAdSection["Audience"] ?? clientId;
             options.TokenValidationParameters.ValidateIssuer = true;
+            options.TokenValidationParameters.ValidAudiences = new[]
+            {
+                clientId,
+                $"api://{clientId}",
+            };
         })
-        .AddPolicyScheme("BrowserOrApi", "Browser (OIDC cookie) or API (JWT Bearer)", options =>
+        .AddScheme<AuthenticationSchemeOptions, EasyAuthHandler>(
+            EasyAuthHandler.SchemeName, _ => { })
+        .AddPolicyScheme("BrowserOrApi", "Browser (OIDC cookie), API (JWT Bearer), or EasyAuth fallback", options =>
         {
             options.ForwardDefaultSelector = context =>
             {
-                // API requests with a Bearer token → JWT Bearer scheme
+                // 1. Bearer token → JWT Bearer (app's own auth)
                 var authHeader = context.Request.Headers.Authorization.FirstOrDefault();
                 if (authHeader?.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase) == true)
                 {
                     return JwtBearerDefaults.AuthenticationScheme;
                 }
-                // API paths without a browser session → JWT Bearer (returns 401 instead of redirect)
+                // 2. Existing OIDC cookie → Cookie scheme (app's own browser auth)
+                if (context.Request.Cookies.ContainsKey(".AspNetCore.Cookies"))
+                {
+                    return Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationDefaults.AuthenticationScheme;
+                }
+                // 3. EasyAuth headers present → fall back to App Service identity
+                if (context.Request.Headers.ContainsKey("X-MS-CLIENT-PRINCIPAL"))
+                {
+                    return EasyAuthHandler.SchemeName;
+                }
+                // 4. API paths without any auth → JWT Bearer (returns 401 instead of redirect)
                 if (context.Request.Path.StartsWithSegments("/api"))
                 {
                     return JwtBearerDefaults.AuthenticationScheme;
                 }
-                // Browser requests → Cookie (backed by OIDC implicit sign-in)
+                // 5. Browser requests → Cookie (will trigger OIDC challenge)
                 return Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationDefaults.AuthenticationScheme;
             };
         });
 
-    // Only register MicrosoftIdentityUI routes when OpenIdConnect scheme is available
     builder.Services.AddRazorPages()
         .AddMicrosoftIdentityUI();
 }
@@ -142,15 +150,33 @@ else
 //   - TripTastic.User   : Can search, book, manage own cart & trips
 //   - TripTastic.Reader  : Read-only access to search & browse
 // ---------------------------------------------------------------------------
-builder.Services.AddAuthorizationBuilder()
-    .AddPolicy("RequireAdmin", policy =>
-        policy.RequireRole("TripTastic.Admin"))
-    .AddPolicy("RequireUser", policy =>
-        policy.RequireRole("TripTastic.User", "TripTastic.Admin"))
-    .AddPolicy("RequireReader", policy =>
-        policy.RequireRole("TripTastic.Reader", "TripTastic.User", "TripTastic.Admin"))
-    .AddPolicy("RequireAuthenticated", policy =>
-        policy.RequireAuthenticatedUser());
+var authzBuilder = builder.Services.AddAuthorizationBuilder();
+if (authConfigured)
+{
+    // All policies just require authentication — no role checks
+    authzBuilder
+        .AddPolicy("RequireAdmin", policy =>
+            policy.RequireAuthenticatedUser())
+        .AddPolicy("RequireUser", policy =>
+            policy.RequireAuthenticatedUser())
+        .AddPolicy("RequireReader", policy =>
+            policy.RequireAuthenticatedUser())
+        .AddPolicy("RequireAuthenticated", policy =>
+            policy.RequireAuthenticatedUser());
+}
+else
+{
+    // Auth disabled — all policies pass through (allow everyone)
+    authzBuilder
+        .AddPolicy("RequireAdmin", policy =>
+            policy.RequireAssertion(_ => true))
+        .AddPolicy("RequireUser", policy =>
+            policy.RequireAssertion(_ => true))
+        .AddPolicy("RequireReader", policy =>
+            policy.RequireAssertion(_ => true))
+        .AddPolicy("RequireAuthenticated", policy =>
+            policy.RequireAssertion(_ => true));
+}
 
 // Add CORS policy for API access
 builder.Services.AddCors(options =>
@@ -169,9 +195,13 @@ builder.Services.AddHttpContextAccessor();
 // Register request logging service (singleton to persist across requests)
 builder.Services.AddSingleton<RequestLogService>();
 
+// Register WWW-Authenticate challenge state (toggleable at runtime)
+var enableWwwAuth = builder.Configuration.GetValue<bool>("EnableWwwAuthenticate", false);
+builder.Services.AddSingleton(new WwwAuthChallengeState(enableWwwAuth));
+
 // Register user context service (scoped to handle per-request user identity)
-// Use DevUserContext when in Development or when auth is not configured
-if (builder.Environment.IsDevelopment() || !authConfigured)
+// Use DevUserContext when auth is not configured (allows dev user switching)
+if (!authConfigured)
 {
     builder.Services.AddScoped<UserContext>();
     builder.Services.AddScoped<IUserContext, DevUserContext>();
@@ -210,6 +240,9 @@ app.UseRouting();
 
 // Enable CORS
 app.UseCors("AllowAll");
+
+// WWW-Authenticate challenge middleware (before auth so it can short-circuit)
+app.UseWwwAuthChallenge();
 
 // Authentication & Authorization middleware (order matters)
 app.UseAuthentication();

@@ -42,10 +42,15 @@
                             var userContext = Context.RequestServices.GetService<trip_tastic.Services.IUserContext>();
                             var cartService = Context.RequestServices.GetService<trip_tastic.Services.ICartService>();
                             var bookingService = Context.RequestServices.GetService<trip_tastic.Services.IBookingService>();
+                            var config = Context.RequestServices.GetRequiredService<IConfiguration>();
                             var userId = userContext?.UserId ?? "anonymous";
                             var userName = userContext?.UserName ?? "Anonymous";
                             var isAuthenticated = userContext?.IsAuthenticated ?? false;
                             var itemCount = cartService?.GetItemCount(userId) ?? 0;
+                            // Detect if we're running on App Service with EasyAuth actually enabled
+                            var enableAuth = config.GetValue<bool>("EnableAuth", false);
+                            var websiteAuthEnabled = Environment.GetEnvironmentVariable("WEBSITE_AUTH_ENABLED");
+                            var useEasyAuth = string.Equals(websiteAuthEnabled, "True", StringComparison.OrdinalIgnoreCase);
                             var tripCount = bookingService?.GetTripCount(userId) ?? 0;
                         }
                         <li class="nav-item">
@@ -104,6 +109,10 @@
                                         {
                                             <li><a class="dropdown-item dev-user-switch" href="#" data-user-id="anonymous"><i class="bi bi-box-arrow-right me-2"></i>Sign out (Dev)</a></li>
                                         }
+                                        else if (useEasyAuth)
+                                        {
+                                            <li><a class="dropdown-item" href="/.auth/logout"><i class="bi bi-box-arrow-right me-2"></i>Sign out</a></li>
+                                        }
                                         else
                                         {
                                             <li><a class="dropdown-item" href="/MicrosoftIdentity/Account/SignOut"><i class="bi bi-box-arrow-right me-2"></i>Sign out</a></li>
@@ -113,7 +122,8 @@
                             }
                             else
                             {
-                                <a class="btn btn-outline-light btn-sm opacity-75" href="/MicrosoftIdentity/Account/SignIn">
+                                var signInUrl = useEasyAuth ? "/.auth/login/aad" : "/MicrosoftIdentity/Account/SignIn";
+                                <a class="btn btn-outline-light btn-sm opacity-75" href="@signInUrl">
                                     <i class="bi bi-box-arrow-in-right me-1"></i>
                                     <span>Sign In</span>
                                 </a>
@@ -133,6 +143,7 @@
     <footer class="footer mt-auto">
         <div class="container text-center">
             &copy; @DateTime.Now.Year TripTastic &mdash; <a asp-area="" asp-page="/Privacy">Privacy</a> &mdash; Made with <i class="bi bi-heart-fill text-danger"></i>
+            <span class="text-muted ms-2" style="font-size:11px;" title="Build time">v@(System.IO.File.GetLastWriteTimeUtc(System.Reflection.Assembly.GetExecutingAssembly().Location).ToString("yyyyMMdd.HHmmss"))</span>
         </div>
     </footer>
 
