@@ -6,9 +6,10 @@ namespace trip_tastic.Controllers;
 
 /// <summary>
 /// Same-origin proxy for the chat widget. Forwards the browser's message to the
-/// configured agent function (Azure Functions, SSE/text-event-stream) and streams
-/// the response straight back, so the function key never reaches the browser and
-/// no cross-origin CORS is required.
+/// configured agent function (Azure Functions, SSE stream) and streams the
+/// response straight back, so the function key never reaches the browser and
+/// no cross-origin CORS is required. Exposed at POST /agent/chat (kept off the
+/// /ai/chat path, which is owned by the easyagent site extension).
 ///
 /// Configuration (appsettings or App Service connection/app settings):
 ///   AgentChat:Url         - base URL of the agent function's chatstream endpoint
@@ -19,7 +20,7 @@ namespace trip_tastic.Controllers;
 /// to the function in both directions.
 /// </summary>
 [ApiController]
-[Route("ai")]
+[Route("agent")]
 [Authorize(Policy = AuthPolicies.RequireAuthenticated)]
 public class AiChatController : ControllerBase
 {

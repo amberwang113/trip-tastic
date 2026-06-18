@@ -414,7 +414,7 @@
         // Endpoint the chat widget posts messages to (same-origin proxy that
         // forwards to the agent function server-side). Override by setting
         // window.CHAT_API_URL before this script runs.
-        const chatApiUrl = window.CHAT_API_URL || '/ai/chat';
+        const chatApiUrl = window.CHAT_API_URL || '/agent/chat';
         let sessionId = localStorage.getItem("chatSessionId") || localStorage.getItem("chatThreadId") || null;
         let chatHistory = JSON.parse(localStorage.getItem("chatHistory") || "[]");
         let chatOpen = localStorage.getItem("chatOpen") === "true";
