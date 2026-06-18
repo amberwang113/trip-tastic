@@ -411,6 +411,10 @@
 
     <!-- Chat Widget Script -->
     <script>
+        // Endpoint the chat widget posts messages to (same-origin proxy that
+        // forwards to the agent function server-side). Override by setting
+        // window.CHAT_API_URL before this script runs.
+        const chatApiUrl = window.CHAT_API_URL || '/ai/chat';
         let sessionId = localStorage.getItem("chatSessionId") || localStorage.getItem("chatThreadId") || null;
         let chatHistory = JSON.parse(localStorage.getItem("chatHistory") || "[]");
         let chatOpen = localStorage.getItem("chatOpen") === "true";
@@ -481,40 +485,126 @@
             const typingId = showTypingIndicator();
             
             try {
-                const response = await fetch('/ai/chat', {
+                const requestHeaders = {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest' // Helps identify AJAX requests
+                };
+                // Pass the existing session id back to the agent via header.
+                if (sessionId) {
+                    requestHeaders['x-ms-session-id'] = sessionId;
+                }
+                const response = await fetch(chatApiUrl, {
                     method: 'POST',
                     credentials: 'include', // Include cookies for auth session
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest' // Helps identify AJAX requests
-                    },
+                    headers: requestHeaders,
                     body: JSON.stringify({
-                        Content: message,
-                        SessionId: sessionId
+                        prompt: message
                     })
                 });
                 
-                removeTypingIndicator(typingId);
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    addMessage(data.content || 'Thanks for your message!', 'bot');
-                    // Handle both sessionId and threadId from server response
-                    const newSessionId = data.sessionId || data.threadId;
-                    if (newSessionId) {
-                        sessionId = newSessionId;
-                        localStorage.setItem("chatSessionId", sessionId);
-                        localStorage.setItem("chatThreadId", sessionId);
-                    }
-                } else if (response.status === 401) {
-                    addMessage('Authentication required. Please refresh the page and sign in.', 'bot');
+                if (response.ok && response.body) {
+                    await handleChatStream(response, typingId);
                 } else {
-                    addMessage('Sorry, I encountered an error. Please try again.', 'bot');
+                    removeTypingIndicator(typingId);
+                    if (response.status === 401) {
+                        addMessage('Authentication required. Please refresh the page and sign in.', 'bot');
+                    } else {
+                        addMessage('Sorry, I encountered an error. Please try again.', 'bot');
+                    }
                 }
             } catch (error) {
                 removeTypingIndicator(typingId);
                 addMessage('Sorry, I couldn\'t connect to the server. Please try again later.', 'bot');
             }
+        }
+
+        // Consumes a Server-Sent Events (SSE) stream of {type, ...} JSON objects.
+        // Recognised events:
+        //   { "type": "session", "session_id": "..." }  -> persist session id
+        //   { "type": "delta",   "content": "..." }       -> append to the reply
+        async function handleChatStream(response, typingId) {
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+            let fullText = '';
+            let botBubble = null;
+
+            const persistSessionId = function(id) {
+                if (!id) return;
+                sessionId = id;
+                localStorage.setItem("chatSessionId", sessionId);
+                localStorage.setItem("chatThreadId", sessionId);
+            };
+
+            const handleEvent = function(payload) {
+                if (payload.type === 'session') {
+                    persistSessionId(payload.session_id);
+                } else if (payload.type === 'delta' && payload.content) {
+                    if (!botBubble) {
+                        removeTypingIndicator(typingId);
+                        botBubble = createStreamingBotBubble();
+                    }
+                    fullText += payload.content;
+                    botBubble.update(fullText);
+                }
+            };
+
+            const processLine = function(line) {
+                const trimmed = line.replace(/\r$/, '');
+                if (!trimmed.startsWith('data:')) return;
+                const data = trimmed.slice(5).trim();
+                if (!data || data === '[DONE]') return;
+                try {
+                    handleEvent(JSON.parse(data));
+                } catch (e) {
+                    // Ignore non-JSON keep-alive lines.
+                }
+            };
+
+            while (true) {
+                const { value, done } = await reader.read();
+                if (done) break;
+                buffer += decoder.decode(value, { stream: true });
+                let newlineIndex;
+                while ((newlineIndex = buffer.indexOf('\n')) !== -1) {
+                    const line = buffer.slice(0, newlineIndex);
+                    buffer = buffer.slice(newlineIndex + 1);
+                    processLine(line);
+                }
+            }
+            // Flush any trailing buffered line.
+            if (buffer.trim()) processLine(buffer);
+
+            // Fall back to the header if no session event was received.
+            if (!sessionId) {
+                persistSessionId(response.headers.get('x-ms-session-id'));
+            }
+
+            removeTypingIndicator(typingId);
+            if (fullText) {
+                // Persist the completed reply to history (already rendered live).
+                chatHistory.push({ text: fullText, sender: 'bot' });
+                localStorage.setItem("chatHistory", JSON.stringify(chatHistory));
+            } else {
+                addMessage('Thanks for your message!', 'bot');
+            }
+        }
+
+        // Creates an empty bot message bubble that can be updated as text streams in.
+        function createStreamingBotBubble() {
+            const messagesContainer = document.getElementById('chat-messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'chat-msg-bot';
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'markdown-content';
+            messageDiv.appendChild(contentDiv);
+            messagesContainer.appendChild(messageDiv);
+            return {
+                update: function(text) {
+                    contentDiv.innerHTML = marked.parse(text);
+                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                }
+            };
         }
 
         function addMessage(text, sender) {

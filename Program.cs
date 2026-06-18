@@ -189,6 +189,9 @@ builder.Services.AddCors(options =>
     });
 });
 
+// Register HttpClient used by the chat proxy to reach the agent function.
+builder.Services.AddHttpClient("AgentChat");
+
 // Add HttpContextAccessor for user context
 builder.Services.AddHttpContextAccessor();
 
